@@ -1,7 +1,7 @@
 # PMC citations 
 
 ## PMC_scripts.py with command line arguments:
-    
+- This script contains 
 1. **Convert DOIs** (from a csv file or from a list given in the arguments) outputs it into a tsv file : 
 - **Example usage:**
 - python3 PMC_scripts.py -f path_to/csv_file_containing DOIs
@@ -15,7 +15,8 @@
 - **Example usage:**
 - python3 PMC_scripts.py -f path_to/doi_file -m y
     
-##  PMC citations and abstract extraction cc_abstract_args.py:
+##  PMC citations and abstract extraction cc_abstract_args.py: 
+- This script extracts all the citations inside an xml file, their DOI, and the cc (the whole paragraph). Then extracts the corresponding abstract from PMC -> CrossRef -> Elsevier. There is an optimized citation context option for a (slightly) more accurate CC (working on this with dynamic CC).
 
 1. **Input:** xml file or folder containing multiple xml files:
 - **Example usage:**
