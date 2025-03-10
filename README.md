@@ -1,7 +1,7 @@
 # PMC citations 
 
 ## PMC_scripts.py with command line arguments:
-- This script contains 
+- This script converts DOIs into PMCIDs/PMIDs, checks if a given DOI is in PMC and downloads the xml files corresponding to the given DOIs. 
 1. **Convert DOIs** (from a csv file or from a list given in the arguments) outputs it into a tsv file : 
 - **Example usage:**
 - python3 PMC_scripts.py -f path_to/csv_file_containing DOIs
