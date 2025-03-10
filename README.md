@@ -26,3 +26,8 @@
 2. **Get optimized cc (with cos similarity):** Withou this option the cc returned is basic (the paragraph containing the citation).
 - **Example usage:**
 - python3 cc_abstract_args.py -xml path_to/file_name -c cos
+
+3. **API Key:**
+- Add NCBI and Elsevier key for fatser requests (and an e-mail adress for elsevier):
+- **Example usage:**
+- python3 cc_abstract_args.py -x path_to/xml_file -p pmc_key -e elsevier_key -m e-mail_@
