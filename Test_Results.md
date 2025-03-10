@@ -1,3 +1,16 @@
+## DOI to PMCID Conversion Report
+
+### Summary
+- **Total Unique DOIs**: 4,979
+- **DOI to PMCID & PMID Conversion**: Completed in **2.58 seconds**
+- **Verification of DOI in PMC**:
+  - **Found**: 3,270
+  - **Not Found**: 1,709
+  - **Execution Time**: **2.41 seconds**
+- **PMCID XML Files Download**:
+  - **Execution Time**: **130.41 seconds**
+
+
 ## Processing Summary
 - **Total XML Files Processed:** 3,270
 - **Processing Time:** 593.90 seconds
