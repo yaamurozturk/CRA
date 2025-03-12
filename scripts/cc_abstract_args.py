@@ -30,7 +30,7 @@ args = parser.parse_args()
 
 
 url = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
-BASE_URL = "https://api.crossref.org/works/"
+CROSSREF_URL = "https://api.crossref.org/works/"
 
 key = args.pmc[0]     # NCBI key
 mail = args.mail[0]
