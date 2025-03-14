@@ -4,15 +4,15 @@ import shutil
 import requests
 import argparse
 import pandas as pd
+import lxml.etree as ET
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 
-parser = argparse.ArgumentParser(description ='DOIs to PMCIDs and xml download.')
-group = parser.add_mutually_exclusive_group(required=True)
+parser = argparse.ArgumentParser(description ='Citation context and abstract extraction from PMC xml files.')
 
-group.add_argument("-f", "--convert_file", nargs = 1,  help ='Convert DOIs into PMCIDs/PMIDs from file')
-group.add_argument("-c", "--convert", nargs = '+',  help ='Convert DOIs into PMCIDs/PMIDs from given list')
-parser.add_argument("-t", "--output_file", nargs = 1, default = "dois_to_pmcids.tsv", help = "File name, default = dois_to_pmcids.tsv")
+parser.add_argument("-f", "--convert_file", nargs = 1,  help ='Convert DOIs into PMCIDs/PMIDs from file')
+parser.add_argument("-c", "--convert", nargs = '+' , help ='Convert DOIs into PMCIDs/PMIDs from given list')
+parser.add_argument("-n", "--file", nargs = 1, default = "dois_to_pmcids.tsv", help = "File name, default = dois_to_pmcids.tsv")
 parser.add_argument("-o", "--output", nargs = 1, default = "pmc_xml", help = "Folder name, default = pmc_xml")
 parser.add_argument("-d", "--download", nargs = 1, default = 'n', help ='Download the xml files of the DOIs having a PMCID (y/n), default: no (n)')
 parser.add_argument("-m", "--check_doi", nargs = 1, default = "n", help = "Check if DOI is in PMC (y/n), default: no (n)")
@@ -20,7 +20,7 @@ args = parser.parse_args()
 ################################## Convert DOI to PMCID and PMID ########################################
 
 # PMC API
-API_KEY = '..'  # NCBI API key
+API_KEY =  ".."  # NCBI API key nessessary for batch xml download
 BASE_URL = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 
 # Function to fetch PMIDs & PMCIDs for a batch of DOIs
@@ -131,47 +131,54 @@ def process_dois(dois, batch_size=150, workers=5):
     
 #   Load PMCIDs from TSV file
 def load_pmc_ids(pmcid_df):
-    pmcid_df = pmcid_df.loc[df['PMCID'] != 'Not Found']  # useless to look for the non existing pmcids
-    return df["PMCID"].astype(str).tolist()  # Ensure PMCIDs are strings
+    print(pmcid_df)
+    pmcid_df = pmcid_df.loc[pmcid_df['PMCID'] != 'Not Found']  # useless to look for the non existing pmcids
+    return pmcid_df["PMCID"].astype(str).tolist()  # Ensure PMCIDs are strings
 
 #   Download XMLs in batch using NCBI API
-def download_pmc_xml_batch(pmc_batch):
-    max_retries = 3
-    pmc_list = ",".join(pmc_batch)  # Format PMCIDs as comma-separated list
-    url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmc_list}&rettype=xml"
+def download_pmc_xml_batch(pmc_ids, batch_size=200):
+    """Fetch articles in batches from PMC using E-utilities."""
+    epost_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/epost.fcgi"
+    efetch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+    
+    for i in range(0, len(pmc_ids), batch_size):
+        batch = pmc_ids[i:i + batch_size]
+        print(f"Processing batch {i//batch_size + 1} with {len(batch)} IDs...")
+        
+        # Post IDs to Entrez
+        epost_params = {"db": "pmc", "id": ",".join(batch),"api_key": API_KEY}
+        epost_response = requests.post(epost_url, data=epost_params, timeout=10)
+        epost_response.raise_for_status()
+        
+        # Parse WebEnv and QueryKey
+        root = ET.fromstring(epost_response.content)
+        webenv = root.find(".//WebEnv").text
+        query_key = root.find(".//QueryKey").text
+        print("Received WebEnv and QueryKey.")
 
-    for attempt in range(  max_retries):  # Retry logic
-        try:
-            response = requests.get(url, timeout=30)
+        # Fetch articles
+        efetch_params = {
+            "db": "pmc",
+            "query_key": query_key,
+            "WebEnv": webenv,
+            "retmode": "xml",
+            "rettype": "full",
+            "api_key": API_KEY
+        }
+        efetch_response = requests.get(efetch_url, params=efetch_params, timeout=30)
+        efetch_response.raise_for_status()
+        
+        # Parse and save articles
+        root = ET.fromstring(efetch_response.content)
+        for article in root.xpath(".//article"):
+            pmid = article.find(".//article-meta/article-id[@pub-id-type='pmc']")
+            pmid_text = pmid.text if pmid is not None else "unknown"
 
-            #  Handle 429 (Rate Limiting)
-            if response.status_code == 429:
-                print(f" Rate limited (429). Retrying in {2 ** attempt} seconds...")
-                time.sleep(10 ** attempt)  # Use exponential backoff
-                continue  # Retry
+            file_path = os.path.join(args.output, f"{pmid_text}.xml")
+            with open(file_path, "wb") as f:
+                f.write(ET.tostring(article, encoding="utf-8", pretty_print=True))
+        print(f"Downloaded batch {i//batch_size + 1} with {len(batch)} xml files")
 
-            #  Handle 200 (Success)
-            if response.status_code == 200:
-                for i, pmc_id in enumerate(pmc_batch):
-                    file_path = os.path.join(args.output, f"{pmc_id}.xml")
-                    with open(file_path, "wb") as f:
-                        f.write(response.content)  # Save response XML
-                #print(f" Batch download")
-                return  # Exit function if successful
-
-            #  Handle Other Errors 
-            print(f" Failed batch {pmc_batch[:5]}... (Status {response.status_code})")
-            break  # No retries for non-recoverable errors (e.g., 404)
-
-        except requests.exceptions.Timeout:
-            #print(f" Timeout for batch {pmc_batch}. Retrying ({attempt+1}/{ max_retries})...")
-            time.sleep(2 ** attempt)  # Exponential backoff
-
-        except requests.exceptions.RequestException as e:
-            print(f" Request failed for batch: {e}")
-            break  # Don't retry if it's a permanent failure
-
-    print(f"Giving up on batch of size: {len(pmc_batch)}")
     retry_with_smaller_batches(pmc_batch)
 
 
@@ -192,40 +199,48 @@ def retry_with_smaller_batches(pmc_batch, min_batch_size=5):
     download_pmc_xml_batch(sub_batch1)
     download_pmc_xml_batch(sub_batch2)
 
-def parallel_download(pmc_ids):
-    BATCH_SIZE = 150  
-    MAX_WORKERS = 15
-    pmc_batches = split_into_batches(pmc_ids, BATCH_SIZE)
+def batch(dois):
+    batch_size = 150  # Number of DOIs per request
+    nb_workers = 5  # Number of parallel requests
+    results = []
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        executor.map(download_pmc_xml_batch, pmc_batches)
+    # Split DOIs into batches of 10
+    doi_batches = [dois[i:i + batch_size] for i in range(0, len(dois), batch_size)]
 
+    # Execute requests in parallel using ThreadPoolExecutor with 5 workers
+    with ThreadPoolExecutor(max_workers = nb_workers) as executor:
+        results_list = list(executor.map(fetch_ids_batch, doi_batches)) # This returns a list of lists (batches) of tuples
+
+    # Flatten results (since each batch returns a list)
+    results = [item for sublist in results_list for item in sublist] # This is a list of tuples after flattening the batches lists
+    return pd.DataFrame(results, columns=['DOI', 'PMID', 'PMCID'])
+
+    # Load DOIs from CSV (non null and unique ones only)
 if __name__ == "__main__":
     start = time.time()
 
     if args.convert:
         dois = pd.DataFrame(args.convert, columns=['DOI'])
     elif args.convert_file:
-        df = pd.read_csv('data/metadata.csv', dtype=str)
+        df = pd.read_csv(args.convert_file[0], dtype=str)
         dois = df['DOI'].dropna().unique()
-
-    pmcid_df = batch(dois)
-    pmcid_df.to_csv(args.output_file, index=False, sep='\t')
-    print(f"Saved PMCIDs/PMIDs in {args.output_file}") 
     
-    if args.check_doi[0] == 'y':
+    pmcid_df = batch(dois)
+    pmcid_df.to_csv(args.file, index=False)
+    print(f"Saved PMCIDs/PMIDs in {args.output}")
+
+    if args.check_doi and args.check_doi[0] == 'y':
         f, nf = process_dois(dois)
 
-    if args.download[0] == 'y':
-        # Ensure XML directory exists
+    if args.download and args.download[0] == 'y':
+        # Ensure output directory exists
         if os.path.exists(args.output):  
             shutil.rmtree(args.output)
         os.makedirs(args.output, exist_ok=True)
 
         # Batch and parallel download
         pmc_ids = load_pmc_ids(pmcid_df)
-        parallel_download(pmc_ids)
+        download_pmc_xml_batch(pmc_ids)
 
     end = time.time()
-    print(f"Completed in {round(end-start, 2)} seconds.")
-
+    print(f"Completed in {round(end - start, 2)} seconds.")
