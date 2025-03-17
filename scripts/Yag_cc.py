@@ -27,7 +27,7 @@ args = parser.parse_args()
 
 
 url = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
-key = "fd895b77ece1cd582d9d2a40cc6d23f88008" # NCBI key
+key = ".." # NCBI key
 bs = 150 # batch size
 par = 10 # workers
 pmid = {} 
