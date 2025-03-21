@@ -1,0 +1,35 @@
+## DOI to PMCID Conversion Report
+
+### Summary
+- **Total Unique DOIs**: 4,979
+- **DOI to PMCID & PMID Conversion**: Completed in **2.58 seconds**
+- **Verification of DOI in PMC**:
+  - **Found**: 3,270
+  - **Not Found**: 1,709
+  - **Execution Time**: **2.41 seconds**
+- **PMCID XML Files Download**:
+  - **Execution Time**: **130.41 seconds**
+
+
+## Citations extraction
+- **Total XML Files Processed:** 3,270
+- **Processing Time:** 593.90 seconds
+- **Total Citations Found:** 14,722,170
+- **Unique Citations:** 30,958
+
+## Abstracts Fetched
+- **From PMC:** 9,868 abstracts
+- **From CrossRef:** 4,416 abstracts
+  - *2 requests failed (saved in `failed_dois.txt` for retry)*
+- **From Elsevier:** 183 abstracts
+
+## Fetching Performance
+- **PMC Abstracts:** 16,403 DOIs processed at ~13.00 DOI/s (21m 01s)
+- **Elsevier Abstracts:** 11,987 DOIs processed at ~2.64 DOI/s (1h 15m 39s)
+
+## Summary
+- **Total Abstracts Retrieved:** 14,467
+- **Processing Time:** 6,923.17 seconds (~1 hour 55 minutes)
+- **Output File:** `cc_abstract_all.tsv`
+
+
