@@ -73,16 +73,6 @@ def find_section_titles(element):
 
     return nearest_title or "Unknown Section", top_level_title or "Unknown Section"
 
-def expand_citation_range(start_id, end_id,ref_list):
-    if start_id in ref_list and end_id in ref_list:
-        start_idx = ref_list.index(start_id)
-        end_idx = ref_list.index(end_id)
-        
-        if start_idx < end_idx:  
-            return ref_list[start_idx:end_idx + 1]
-    
-    return [start_id, end_id] 
-
 def fetch_dois_batch(pmids):
     """Fetch DOIs for a batch of PMIDs."""
     batch_size = 50
@@ -105,14 +95,77 @@ def fetch_dois_batch(pmids):
             print(f"Batch request failed: {e}")
     return results
 
+def expand_citation_range(start_id, end_id,ref_list):
+    if start_id in ref_list and end_id in ref_list:
+        start_idx = ref_list.index(start_id)
+        end_idx = ref_list.index(end_id)
+        
+        if start_idx < end_idx:  
+            return ref_list[start_idx:end_idx + 1]
+    
+    return [start_id, end_id] 
+    
+import re
+import string
+import xml.etree.ElementTree as ET
+import pandas as pd
+
+def expand_citation_range(start_id, end_id, ref_list):
+    def parse_rid(rid):
+        match = re.match(r"([a-zA-Z]*)(\d+)([a-z]?)", rid)
+        if match:
+            prefix, num, suffix = match.groups()
+            return prefix, int(num), suffix
+        return None, None, None
+
+    start_prefix, start_num, start_suffix = parse_rid(start_id)
+    end_prefix, end_num, end_suffix = parse_rid(end_id)
+
+    if start_prefix != end_prefix or start_num is None or end_num is None:
+        return [start_id, end_id]  # fallback
+
+    expanded = []
+    if start_num == end_num and start_suffix and end_suffix:
+        # e.g., B5a–B5c
+        suffix_range = string.ascii_lowercase[string.ascii_lowercase.index(start_suffix):string.ascii_lowercase.index(end_suffix) + 1]
+        for suffix in suffix_range:
+            candidate = f"{start_prefix}{start_num}{suffix}"
+            if candidate in ref_list:
+                expanded.append(candidate)
+    else:
+        # e.g., B5–B9
+        for n in range(start_num, end_num + 1):
+            candidates = [f"{start_prefix}{n}"]
+            candidates += [r for r in ref_list if r.startswith(f"{start_prefix}{n}") and r != f"{start_prefix}{n}"]
+            for c in candidates:
+                if c in ref_list:
+                    expanded.append(c)
+    return expanded or [start_id, end_id]
+
+def parse_inline_citation(text, rid, ref_list):
+    citation_ids = []
+    parts = re.split(r"[,;]", text)
+    for part in parts:
+        part = part.strip()
+        if re.search(r"[–-]", part):
+            nums = re.split(r"[–-]", part)
+            if len(nums) == 2:
+                prefix = re.match(r"([a-zA-Z]+)", rid).group(1) if rid else ''
+                start_id = f"{prefix}{nums[0].strip()}"
+                end_id = f"{prefix}{nums[1].strip()}"
+                citation_ids += expand_citation_range(start_id, end_id, ref_list)
+        else:
+            prefix = re.match(r"([a-zA-Z]+)", rid).group(1) if rid else ''
+            citation_ids.append(f"{prefix}{part.strip()}")
+    return citation_ids
+
 def extract_pmc_citations(xml_file):
-    """Extract citations from a PMC XML file, ensuring citation ranges are handled correctly."""
     try:
         tree = ET.parse(xml_file)
         root = tree.getroot()
 
         citing_doi = None
-        first_article = next(root.iter("article"), None)  # Get the first <article> tag and ignore all else
+        first_article = next(root.iter("article"), None)
         if first_article is None:
             print("No <article> found in the XML file.")
             return pd.DataFrame()
@@ -122,112 +175,72 @@ def extract_pmc_citations(xml_file):
                 citing_doi = article_id.text
                 break
 
-        # Prep for batch
-        pmid_cache = {}
-        pmid_list = []
-        pmid_to_refid = {}
         ref_dict = {}
         ref_list = []
-
         refs = first_article.findall(".//ref")
 
-
-        for i, ref in enumerate(refs):
+        for ref in refs:
             ref_id = ref.get("id")
+            ref_list.append(ref_id)
             title_elem = ref.find(".//article-title")
             doi_elem = ref.find(".//pub-id[@pub-id-type='doi']")
             pmid_elem = ref.find(".//pub-id[@pub-id-type='pmid']")
-            ref_list.append(ref_id)
-
-            if doi_elem is not None and doi_elem.text:
-                doi_value = doi_elem.text.strip()
-            elif pmid_elem is not None and pmid_elem.text:
-                pmid = pmid_elem.text.strip()
-                pmid_list.append(pmid)
-                pmid_to_refid[ref_id] = pmid
-                doi_value = None  
-            else:
-                doi_value = 'No DOI'
-
+            doi = doi_elem.text.strip() if doi_elem is not None and doi_elem.text else "No DOI"
+            pmid = pmid_elem.text.strip() if pmid_elem is not None and pmid_elem.text else None
             ref_dict[ref_id] = {
-                "title": title_elem.text.strip() if title_elem is not None and title_elem.text else "No title",
-                "doi": doi_value
+                "title": title_elem.text.strip() if title_elem is not None else "No title",
+                "doi": doi if doi else f"PMID:{pmid}" if pmid else "No DOI"
             }
 
-        if pmid_list:
-            print(f"Fetching DOIs for PMIDs batch: {pmid_list}")
-            pmid_cache = fetch_dois_batch(pmid_list)
-
-            for r_id, pmid in pmid_to_refid.items():
-                ref_dict[r_id]["doi"] = pmid_cache.get(pmid, 'Not open access DOI')
-            
-            
         data = []
         for paragraph in first_article.findall(".//p"):
             text = " ".join(paragraph.itertext()).strip()
-            sentences = split_sentences(text)
             citation_matches = paragraph.findall(".//xref")
-            nearest, top_level = find_section_titles(paragraph)
-            sentence_index = 0
-            
+
             i = 0
             while i < len(citation_matches):
                 citation = citation_matches[i]
-                #print(citation.text)
                 citation_id = citation.get("rid")
-                #print(citation_id)
+                tail = citation.tail.strip() if citation.tail else ""
+                expanded_ids = []
 
-                last_sentence_index = 0
-                # Check if there's an en-dash after the citation
-                if i + 1 < len(citation_matches):
+                # Case 1: single <xref> with inline 5,7 or 5–7 inside
+                if citation.text and (',' in citation.text or re.search(r"\d+[–-]\d+", citation.text)):
+                    expanded_ids = parse_inline_citation(citation.text, citation_id, ref_list)
+
+                # Case 2: stacked <xref> like <xref>5</xref> – <xref>7</xref>
+                elif re.search(r"[–-]", tail) and i + 1 < len(citation_matches):
                     next_citation = citation_matches[i + 1]
-                    sibling_text = citation.tail.strip() if citation.tail else ""
+                    next_id = next_citation.get("rid")
+                    expanded_ids = expand_citation_range(citation_id, next_id, ref_list)
+                    i += 1
 
-                    if "–" in sibling_text: 
-                        next_citation_id = next_citation.get("rid")
-                        expanded_ids = expand_citation_range(citation_id, next_citation_id,ref_list)
-                        i += 1  
-                
-                i += 1  # Moving on
-                
-                # Find the sentence that contains the citation
-                sentence_index = next(
-                    (i for i, s in enumerate(sentences) 
-                     if citation.text and re.search(rf'\b{re.escape(citation.text.strip())}\b', s.text)),
-                    None
-                )
-                #print(sentences)
-                #print(len(sentences))
-                expanded_ids = [citation_id]
-                previous_next = " boink "
-                if sentence_index is not None:
-                    prev_index = max(0, sentence_index - 1)
-                    next_index = min(len(sentences), sentence_index + 2)
-                    previous_next = " ".join([sent.text for sent in sentences[prev_index:next_index]]).strip()
-                    #print(previous_next)
+                # Case 3: normal <xref> single citation
+                else:
+                    expanded_ids.append(citation_id)
 
                 for expanded_id in expanded_ids:
                     if expanded_id in ref_dict:
                         data.append([
                             citing_doi,
                             expanded_id,
-                            text,  
-                            previous_next, 
-                            top_level,
-                            nearest,
+                            text,
                             ref_dict[expanded_id]["title"],
                             ref_dict[expanded_id]["doi"]
                         ])
+                i += 1
 
-
-        df = pd.DataFrame(data, columns=["Citing DOI", "Citation ID", "CC paragraph", "CC prev_next", "IMRD", "Section title", "Cited title", "DOI"])
-        return df#[df['DOI'] != 'No DOI']
+        df = pd.DataFrame(data, columns=["Citing DOI", "Citation ID", "CC paragraph", "Cited title", "DOI"])
+        return df
 
     except Exception as e:
         print(f"Error processing file: {e}")
         return pd.DataFrame()
 
-        
+
+
+
+    
 def process_files(directory):
     """Process XML files in parallel using multiprocessing."""
     start = time.time()
@@ -247,8 +260,7 @@ def process_files(directory):
     print(f"Citations extracted in {time.time() - start:.2f} seconds")
     #print("Columns: ", df.columns) 
     return df
-
-
+        
 start_time = time.time()
 
 ############################################## Extract citations from xml file ######################################
@@ -259,12 +271,23 @@ elif (args.xml_folder):
 	
 ######################################### Simple paragraph citation context #####################################
 
-final = pmc_citations_df[(pmc_citations_df['DOI'] == target_doi) | (pmc_citations_df['Cited title'] == target_title)]
+def match_first_5_words(cited_title, target_title):
+    if not cited_title or pd.isnull(cited_title) or pd.isnull(target_title):
+        return False
+    cited_words = cited_title.lower().split()[:5]  # Get the first 5 words
+    target_title_lower = target_title.lower()
+    # Check if all first 5 words appear in the target_title
+    return all(word in target_title_lower for word in cited_words)
+
+final = pmc_citations_df[
+    (pmc_citations_df['DOI'] == target_doi) | 
+    (pmc_citations_df['Cited title'].apply(lambda x: match_first_5_words(x, target_title)))
+]
+
+
+#final = pmc_citations_df[(pmc_citations_df['DOI'] == target_doi) | (pmc_citations_df['Cited title'] == target_title)]
 print(final)
-
+print(pmc_citations_df)
 final.to_csv('citing_citations.tsv', sep = '\t', index=False)
-pmc_citations_df = pmc_citations_df[pmc_citations_df['DOI'] != 'No DOI']
-pmc_citations_df.to_csv('all_citations.tsv', sep = '\t', index=False)
-
-
-
+#pmc_citations_df = pmc_citations_df[pmc_citations_df['DOI'] != 'No DOI']
+pmc_citations_df.to_csv('all_citations.tsv', sep = '\t', index=False)    
