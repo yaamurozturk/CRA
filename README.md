@@ -15,14 +15,6 @@ This repository containes scripts for **citation context extraction**, with supp
 - **Extract citation contexts** from citing articles referencing a specific paper (via DOI, PMID, or PMCID).
 - **Retrieve citation context metadata**, including section titles and IMRAD structure (Introduction, Methods, Results, Discussion).
 
-## Usage Highlights
-
-- **Batch process folders** of PMC XML files for citation context extraction.
-- Handle cases such as:
-  - Implicit citation markers (e.g., `[12–14]` spanning multiple `<xref>` tags)
-  - Implicit citation markers (e.g., `[12–14]` in a simple `<xref>` tag)
-  - Implicit citations: `[5, 12–14 ; 6]`
-
 ## Example Citation context extraction
 
 1. **Input**: PMC XML full-text article or batch of XML files.
