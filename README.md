@@ -9,9 +9,9 @@ This repository provides tools for advanced **citation context extraction**, wit
 -  **Convert identifiers** between DOI, PMID, and PMCID.
 -  **Download full-text PMC XML files** using PMCID or PMID.
 -  **Fetch abstracts** from:
-  - **Crossref**
-  - **PubMed Central (PMC)**
-  - **Elsevier API**
+    - **Crossref**
+    - **PubMed Central (PMC)**
+    - **Elsevier API**
 - **Extract citation contexts** from citing articles referencing a specific paper (via DOI, PMID, or PMCID).
 - **Retrieve citation context metadata**, including section titles and IMRAD structure (Introduction, Methods, Results, Discussion).
 
@@ -23,7 +23,7 @@ This repository provides tools for advanced **citation context extraction**, wit
   - Implicit citation markers (e.g., `[12–14]` in a simple `<xref>` tag)
   - Implicit citations: `[5, 12–14 ; 6]`
 
-## Example Workflow
+## Example Citation context extraction
 
 1. **Input**: PMC XML full-text article or batch of XML files.
 2. **Process**: 
