@@ -1,13 +1,13 @@
-# Citation Context Extraction Toolkit
+# Citation Context Extraction
 
-This repository provides tools for advanced **citation context extraction**, with support for complex and stacked citation handling.
+This repository containes scripts for **citation context extraction**, with support for complex and stacked citation handling in pmc xml files.
 
-## Features
+## What it can do
 
 -  **Extract citation contexts** from PMC XML files.
 -  **Handle stacked citations** such as `[1–4]`, `[3, 5–7]`, or mixed `<xref>` tag structures.
 -  **Convert identifiers** between DOI, PMID, and PMCID.
--  **Download full-text PMC XML files** using PMCID or PMID.
+-  **Download full-text PMC XML files** using PMCID/PMID.
 -  **Fetch abstracts** from:
     - **Crossref**
     - **PubMed Central (PMC)**
@@ -18,7 +18,7 @@ This repository provides tools for advanced **citation context extraction**, wit
 ## Usage Highlights
 
 - **Batch process folders** of PMC XML files for citation context extraction.
-- Handle edge cases like:
+- Handle cases such as:
   - Implicit citation markers (e.g., `[12–14]` spanning multiple `<xref>` tags)
   - Implicit citation markers (e.g., `[12–14]` in a simple `<xref>` tag)
   - Implicit citations: `[5, 12–14 ; 6]`
