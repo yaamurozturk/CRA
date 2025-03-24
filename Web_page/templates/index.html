@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Results Table</title>
+     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <style>
+    
+    
+        body {
+            font-family: Times New Roman, sans-serif;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        table.dataTable thead th {
+            background-color: #3a8eba;
+            color: white;
+        }
+        table.dataTable tbody tr:hover {
+            background-color: #e0f0ff;
+        }
+        .dataTables_wrapper {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+            padding: 20px;
+        }
+        /* Adjust column widths */
+        .col-cc-paragraph {
+            width: 35%;
+            white-space: normal;
+        }
+        .col-previous-next {
+            width: 25%;
+            white-space: normal;
+        }
+        th, td {
+            min-width: 80px;
+        }
+        /* Optional: make table horizontally scrollable on smaller screens */
+        table.dataTable {
+            width: 100% !important;
+        }
+        div.dataTables_wrapper {
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body class="p-4">
+<center>
+    <div class="container">
+        <h1 class="mb-4">Upload your xml file</h1>
+        <form method="POST" enctype="multipart/form-data" class="d-flex flex-column gap-3" style="max-width: 550px;">
+            <div class="mb-3">
+                <label for="file" class="form-label">Choose file</label>
+                <input class="form-control" type="file" name="file" id="file">
+            </div>
+            <button type="submit" class="btn btn-outline-success">Upload</button>
+        </form>
+
+
+        {% if result_df.empty %}
+            <div class="alert alert-warning mt-4" role="alert">
+<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-info-lg" viewBox="0 0 16 16">
+  <path d="m9.708 6.075-3.024.379-.108.502.595.108c.387.093.464.232.38.619l-.975 4.577c-.255 1.183.14 1.74 1.067 1.74.72 0 1.554-.332 1.933-.789l.116-.549c-.263.232-.65.325-.905.325-.363 0-.494-.255-.402-.704zm.091-2.755a1.32 1.32 0 1 1-2.64 0 1.32 1.32 0 0 1 2.64 0"/>
+</svg>
+                No full text is available for this article, so no citations could be extracted.
+            </div>
+        {% endif %}
+</center>
+{% if result_df is not none and not result_df.empty %}
+
+    <h2>{{ row_data | length }} citation contexts found in {{ filename }}</h2>
+
+
+
+    <table id="resultsTable" class="display nowrap">
+        <thead>
+            <tr>
+                {% for col in column_names %}
+                <th class="{% if col == 'CC paragraph' %}col-cc-paragraph{% elif col == 'previous_next' %}col-previous-next{% endif %}">{{ col }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in row_data %}
+            <tr>
+                {% for cell in row %}
+                <td>{{ cell }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#resultsTable').DataTable({
+                pageLength: 10,
+                lengthMenu: [5, 10, 25, 50],
+                scrollX: true, // enable horizontal scrolling if needed
+                responsive: true
+            });
+        });
+    </script>
+
+</body>
+</html>
+
