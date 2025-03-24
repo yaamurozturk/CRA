@@ -1,4 +1,4 @@
-## Summary for Citation Context from all articles citing 'Carbon-dot' 
+## Summary for Citation Context from all articles citing 'Carbon-dot': How many times each paper cites "Carbon Dot" 
 
 Citing.DOI | n
 --- | ---
@@ -42,7 +42,7 @@ Citing.DOI | n
 10.3390/nano9101500 | 2
 
 
-## Summary for Retracted articles citations
+## Summary for Retracted articles citations: How many times a paper cites a retracted article.
 
 Retracted.DOI | n
 --- | ---
