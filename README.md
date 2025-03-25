@@ -1,4 +1,4 @@
-# Citation Context Extraction
+# Citation Context Extraction:  
 
 This repository containes scripts for **citation context extraction**, with support for complex and stacked citation handling in pmc xml files.
 
@@ -15,7 +15,7 @@ This repository containes scripts for **citation context extraction**, with supp
 - **Extract citation contexts** from citing articles referencing a specific paper (via DOI, PMID, or PMCID).
 - **Retrieve citation context metadata**, including section titles and IMRAD structure (Introduction, Methods, Results, Discussion).
 
-## Example Citation context extraction
+## Example Citation context extraction: <strong style="color:green;">Citing_DOIS.ipynb</strong>
 
 1. **Input**: PMC XML full-text article or batch of XML files.
 2. **Process**: 
@@ -24,10 +24,10 @@ This repository containes scripts for **citation context extraction**, with supp
    - Extract surrounding sentence, paragraph, and section context.
 3. **Output**: Structured data frame with citation metadata.
 
-## Retracted papers:
+## Retracted papers: <strong style="color:green;">RR.ipynb</strong>
 -  **Check for retracted DOIs** in retraction_watch.csv.
 -  **Extract retraction reasons** for each DOI 
--  **Check if retraction_watch.csv was updated** on the git or not before using the file
+-  **Check if retraction_watch.csv was updated** on the git or not before using it  <strong style="color:green;">Makefile</strong>
 
 # PMC citations 
 
