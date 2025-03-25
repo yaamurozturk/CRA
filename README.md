@@ -24,7 +24,10 @@ This repository containes scripts for **citation context extraction**, with supp
    - Extract surrounding sentence, paragraph, and section context.
 3. **Output**: Structured data frame with citation metadata.
 
-
+## Retracted papers:
+-  **Check for retracted DOIs in retraction_watch.csv.
+-  **Extract retraction reasons for each DOI 
+-  **Check if retraction_watch.csv was updated on the git or not before using the file
 
 # PMC citations 
 
