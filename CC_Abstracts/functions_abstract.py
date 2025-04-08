@@ -183,8 +183,8 @@ def merge(dfs, abstracts_df,metadata_df , pmc_citations_df):
 			  #[f"{col}_el"]
 
 	merged_df.drop(columns=columns_to_drop, inplace=True)
-	print(merged_df)
-	print("merged length ", len(merged_df))
+	#print(merged_df)
+	#print("merged length ", len(merged_df))
 	merged_df = merged_df.dropna(subset = [col]) # remove citations where the abstract was not found
 	return merged_df
     
