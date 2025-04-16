@@ -2,19 +2,17 @@
 # coding: utf-8
 import os
 import re
+import gc
 import time
-import json
 import random
-import spacy 
 import argparse
 import requests
-import numpy as np
 import pandas as pd
 import string
+import spacy
 from tqdm import tqdm
 import lxml.etree as ET
-from itertools import islice
-from multiprocessing import Pool
+from pysbd import Segmenter
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 
 parser = argparse.ArgumentParser(description ='Citation context and abstract extraction from PMC xml files.')
@@ -28,19 +26,19 @@ parser.add_argument("-c", "--context", nargs = 1, default = "basic", help = "Bas
 args = parser.parse_args()
 
 BASE_URL = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
-key = ".." # NCBI key
-bs = 150 # batch size
-par = 10 # workers
+key = "fd895b77ece1cd582d9d2a40cc6d23f88008" # NCBI key
+bs = 50 # batch size
+par = 5 # workers
 pmid = {} 
 no_pmid = []
 failed_dois = []
 dois_without_abstract = []
 target_doi = "10.1002/anie.201109089"
 target_title = "Carbon-dot-based dual-emission nanohybrid produces a ratiometric fluorescent sensor for in vivo imaging of cellular copper ions"
-
+missing_pmids = []
 # # **Extract all citations in xml file:  1. Remove all citations that have no DOI  2. Save a df with unique DOI**
 def get_nlp():
-    nlp = spacy.load("en_core_web_sm", disable=["ner", "tagger", "parser"])
+    nlp = spacy.load("en_core_web_sm", disable=["ner", "parser"])
     if "sentencizer" not in nlp.pipe_names:
         nlp.add_pipe("sentencizer")
     return nlp
@@ -50,9 +48,6 @@ def split_sentences(text):
 
     doc = split_sentences.nlp(text)
     return list(doc.sents)
-
-
- 
 
 def find_section_titles(element):
     """Find both the nearest and top-level section titles."""
@@ -80,11 +75,11 @@ def find_section_titles(element):
 
 def fetch_dois_batch(pmids):
     """Fetch DOIs for a batch of PMIDs."""
-    batch_size = 50
+    batch_size = 25
     results = {}
     for i in range(0, len(pmids), batch_size):
         batch = pmids[i:i+batch_size]
-        params = {'format': 'json', 'ids': ','.join(batch)}
+        params = {'format': 'json', 'ids': ','.join(batch), 'api_key': key}
         try:
             response = requests.get(BASE_URL, params=params, timeout=10)
             if response.status_code == 200:
@@ -101,20 +96,15 @@ def fetch_dois_batch(pmids):
     return results
 
 def extract_pmc_citations(xml_file):
-    """
-    Extract citations from PMC XML file with strict range handling.
-    Only expands ranges when there's explicit evidence in the XML structure.
-    """
     try:
         tree = ET.parse(xml_file)
         root = tree.getroot()
         first_article = next(root.iter("article"), None)
         
         if first_article is None:
-            print("No <article> found in the XML file.")
             return pd.DataFrame()
 
-        # Get citing DOI
+        # Get citing DOI (the article's own DOI)
         citing_doi = None
         for article_id in first_article.findall(".//article-id"):
             if article_id.get("pub-id-type") == "doi":
@@ -124,62 +114,83 @@ def extract_pmc_citations(xml_file):
         # Build reference dictionary
         ref_dict = {}
         ref_list = []
+        pmids_to_fetch = []  # Store PMIDs missing DOIs
+
         for ref in first_article.findall(".//ref"):
             ref_id = ref.get("id")
+            if not ref_id:
+                continue
+                
             ref_list.append(ref_id)
             
             title_elem = ref.find(".//article-title")
+            if title_elem is None:
+                title_elem = ref.find(".//source")
+
+            title = title_elem.text.strip() if title_elem is not None and title_elem.text else "No title"
+
             doi_elem = ref.find(".//pub-id[@pub-id-type='doi']")
-            pmid_elem = ref.find(".//pub-id[@pub-id-type='pmid']")
-            
-            title = title_elem.text.strip() if title_elem is not None else "No title"
             doi = doi_elem.text.strip() if doi_elem is not None and doi_elem.text else None
+
+            pmid_elem = ref.find(".//pub-id[@pub-id-type='pmid']")
             pmid = pmid_elem.text.strip() if pmid_elem is not None and pmid_elem.text else None
             
+            # Store PMIDs for later DOI lookup
+            if not doi and pmid:
+                pmids_to_fetch.append(pmid)
+                missing_pmids.append(pmid)
             ref_dict[ref_id] = {
                 "title": title,
-                "doi": doi if doi else f"PMID:{pmid}" if pmid else "No DOI"
+                "doi": doi if doi else f"PMID:{pmid}" if pmid else "No DOI",
+                "pmid": pmid
             }
+        
+        # Fetch DOIs for PMIDs (batch request)
+        if pmids_to_fetch:
+            
+            pmid_doi_map = fetch_dois_batch(pmids_to_fetch)
+            # Update ref_dict with found DOIs
+            for ref_id, data in ref_dict.items():
+                if data["pmid"]  in pmid_doi_map:
+                    data["doi"] = pmid_doi_map[data["pmid"]]
+                else:
+                    data["doi"] = data["pmid"]
 
         # Process citations
         data = []
         for paragraph in first_article.findall(".//p"):
-            text = " ".join(paragraph.itertext()).strip()
-            sentences = split_sentences(text)
+            full_text = " ".join(paragraph.itertext()).strip()
+            if not full_text:
+                continue
+                
+            sentences = split_sentences(full_text)
             citations = paragraph.findall(".//xref[@ref-type='bibr']")
-            nearest, top_level = find_section_titles(paragraph)
-            
+
             i = 0
             while i < len(citations):
                 citation = citations[i]
                 rid = citation.get("rid")
-                citation_text = citation.text.strip() if citation.text else ""
-                citation_tail = citation.tail.strip() if citation.tail else ""
+                citation_text = citation.text.strip() if citation.text and citation.text.strip() else ""
+                citation_tail = citation.tail.strip() if citation.tail and citation.tail.strip() else ""
                 
-                 # Find containing sentence
-                sentence_index = None
-                for idx, sent in enumerate(sentences):
-                    if citation_text and citation_text in sent.text:  # Ensure we are comparing text, not token
-                        sentence_index = idx
-                        break
-
-                previous_next = ""
-                if sentence_index is not None:
-                    # Handle sentence bounds correctly
-                    prev_idx = max(0, sentence_index - 1)
-                    next_idx = min(len(sentences), sentence_index + 2)
-                    previous_next = " ".join([s.text for s in sentences[prev_idx:next_idx]]).strip()  # Get the text of sentences
-                    #print(f"Previous and next context: {previous_next}")
-                else:
-                    print(f"Citation text '{citation_text}' not found in any sentence.")
+                
+                current_sentence = None #full_text  # default to full paragraph if we can't find sentence
+                if sentences:
+                    for sent in sentences:
+                        sent_text = sent.text if hasattr(sent, 'text') else str(sent)
+                        if rid and rid in sent_text:
+                            current_sentence = sent_text.strip()
+                            break
+                        if citation_text and citation_text in sent_text:
+                            current_sentence = sent_text.strip()
+                            break
 
                 # CASE 1: Simple citation
                 if not citation_text:
-                    if rid:  # Only process if we have a reference ID
-                        data.append(create_citation_row(ref_dict, rid, text, previous_next, top_level, nearest, citing_doi))
+                    if rid:
+                        data.append(create_citation_row(ref_dict, rid, full_text, current_sentence, citing_doi))
                     i += 1
                     continue
-
                 
                 # CASE 2: Citation with text that might indicate a range
                 if "-" in citation_text or "–" in citation_text:
@@ -198,12 +209,12 @@ def extract_pmc_citations(xml_file):
                                 end = f"{prefix}{range_parts[1].strip()}"
                                 expanded = safe_expand_range(start, end, ref_list)
                                 for expanded_id in expanded:
-                                    data.append(create_citation_row(ref_dict, expanded_id, text, previous_next, top_level, nearest, citing_doi))
+                                    data.append(create_citation_row(ref_dict, expanded_id, full_text, current_sentence, citing_doi))
                         else:
                             # Single reference in comma-separated list
                             prefix = re.match(r"([a-zA-Z]+)", rid).group(1) if rid else ''
                             ref_id = f"{prefix}{part}"
-                            data.append(create_citation_row(ref_dict, ref_id, text, previous_next, top_level, nearest, citing_doi))
+                            data.append(create_citation_row(ref_dict, ref_id, full_text, current_sentence, citing_doi))
                     i += 1
                     continue
                 
@@ -214,36 +225,82 @@ def extract_pmc_citations(xml_file):
                     next_rid = citations[i+1].get("rid")
                     expanded = safe_expand_range(rid, next_rid, ref_list)
                     for expanded_id in expanded:
-                        data.append(create_citation_row(ref_dict, expanded_id, text, previous_next, top_level, nearest, citing_doi))
+                        data.append(create_citation_row(ref_dict, expanded_id, full_text, current_sentence, citing_doi))
                     i += 2  # Skip next citation as we've processed it
                     continue
                 
                 # DEFAULT CASE: Process as single citation
                 if rid:
-                    data.append(create_citation_row(ref_dict, rid, text, previous_next, top_level, nearest, citing_doi))
+                    data.append(create_citation_row(ref_dict, rid, full_text, current_sentence, citing_doi))
                 i += 1
 
-        df = pd.DataFrame(data, columns=["Cited title", "DOI", "Citation ID", "CC paragraph", "CC window", "IMRAD", "Section Title", "Citing DOI"])
-        return df
+        df = pd.DataFrame(data, columns=["DOI", "Cited title", "Citation ID", "CC paragraph", "Citation_context", "Citing DOI"])
+        return df, missing_pmids
 
     except Exception as e:
-        print(f"Error processing file: {e}")
+        print(f"Error processing file {xml_file}: {str(e)}")
         return pd.DataFrame()
 
-def create_citation_row(ref_dict, ref_id, text, previous_next, top_level, nearest, citing_doi):
+def create_citation_row(ref_dict, ref_id, text, current_sentence, citing_doi):
     """Create a row of citation data."""
     ref_info = ref_dict.get(ref_id, {"title": "No title", "doi": "No DOI"})
     return [
-        ref_info["title"],
         ref_info["doi"],
+        ref_info["title"],
         ref_id,
         text,
-        previous_next,
-        top_level,
-        nearest,
+        current_sentence,
         citing_doi
     ]
 
+
+def process_files(directory):
+    """
+    Process PMC XML files in parallel using multiprocessing.
+    Prints the number of citations extracted from each file.
+
+    Args:
+        directory (str): Path to folder containing .xml files.
+
+    Returns:
+        tuple: (Combined DataFrame of citations, List of missing PMIDs)
+    """
+    start = time.time()
+
+    # Gather all XML files in the directory
+    files = [entry.path for entry in os.scandir(directory) 
+             if entry.is_file() and entry.name.endswith('.xml')]
+
+    print(f"Found {len(files)} XML files to process...")
+
+    all_dfs = []
+    all_missing_pmids = []
+
+    with ProcessPoolExecutor(max_workers=max(1, os.cpu_count() - 3)) as executor:
+        futures = {executor.submit(extract_pmc_citations, file): file for file in files}
+
+        for future in tqdm(as_completed(futures), total=len(futures),
+                           desc="Processing XML files", unit='file'):
+            file = futures[future]
+            try:
+                df, missing_pmids = future.result()
+                if not df.empty:
+                    filename = os.path.basename(file)
+                    num_citations = len(df)
+                    all_dfs.append(df)
+                    all_missing_pmids.extend(missing_pmids)
+            except Exception as e:
+                print(f"Error processing {file}: {e}")
+
+    if all_dfs:
+        combined_df = pd.concat(all_dfs, ignore_index=True)
+        total_citations = len(combined_df)
+        print(f"\nTotal: Extracted {total_citations} citations from {len(all_dfs)} files in {time.time() - start:.2f} seconds")
+        return combined_df, all_missing_pmids
+    else:
+        print("No citation data extracted from any file.")
+        return pd.DataFrame(), []
+        
 def is_only_range_indicator(text):
     """Check if text is nothing but a range indicator."""
     return text in ["-", "–", "−"] or re.match(r"^\s*[–−-]\s*$", text)
@@ -262,10 +319,8 @@ def safe_expand_range(start_id, end_id, ref_list):
     start_prefix, start_num, start_suffix = parse_components(start_id)
     end_prefix, end_num, end_suffix = parse_components(end_id)
 
-    # Only expand if:
-    # 1. Prefixes match
-    # 2. Both have numbers
-    # 3. Numbers are in proper order
+    # Only expand if: Prefixes match, Both have numbers and Numbers are in proper order
+    
     if (not start_prefix or not end_prefix or 
         start_prefix != end_prefix or
         not start_num or not end_num):
@@ -306,60 +361,12 @@ def safe_expand_range(start_id, end_id, ref_list):
     expanded.sort(key=lambda x: (parse_components(x)[1], parse_components(x)[2] or ''))
     
     return expanded if expanded else [start_id, end_id]
-
-
-
-def process_files(directory):
-    """
-    Process PMC XML files in parallel using multiprocessing.
-
-    Args:
-        directory (str): Path to folder containing .xml files.
-
-    Returns:
-        pd.DataFrame: Combined DataFrame with extracted citation data.
-    """
-    start = time.time()
-
-    # Gather all XML files in the directory
-    files = [entry.path for entry in os.scandir(directory) 
-             if entry.is_file() and entry.name.endswith('.xml')]
-
-    print(f"Found {len(files)} XML files to process...")
-
-    results = []
-
-    with ProcessPoolExecutor(max_workers=os.cpu_count()-2) as executor:
-        # Submit all jobs
-        futures = {executor.submit(extract_pmc_citations, file): file for file in files}
-
-        # Collect results as they finish
-        for future in tqdm(as_completed(futures), 
-                           total=len(futures), 
-                           desc="Processing XML files", 
-                           unit='file', 
-                           leave=True, 
-                           position=0):
-            file = futures[future]
-            try:
-                result = future.result()
-                if not result.empty:
-                    results.append(result)
-            except Exception as e:
-                print(f"Error processing {file}: {e}")
-
-    if results:
-        df = pd.concat(results, ignore_index=True)
-        print(f"Citations extracted from {len(results)} files in {time.time() - start:.2f} seconds")
-        return df
-    else:
-        print("No citation data extracted from any file.")
-        return pd.DataFrame()   
-
+ 
+ 
 def normalize_dashes(text):
     """Convert all dash-like characters to standard hyphens."""
     return re.sub(r'[‐‒–—―−]', '-', str(text).lower())
-
+       
 def match_min_phrase(cited_title, target_title):
     """Check if cited_title contains the first critical part of target_title."""
     if pd.isnull(cited_title) or pd.isnull(target_title):
@@ -376,9 +383,9 @@ def match_min_phrase(cited_title, target_title):
 if __name__ == "__main__":
 
     if args.xml_file:
-        pmc_citations_df = extract_pmc_citations(args.xml_file[0])
+        pmc_citations_df, missing_pmids = extract_pmc_citations(args.xml_file[0])
     elif args.xml_folder:
-        pmc_citations_df = process_files(args.xml_folder)
+        pmc_citations_df,missing_pmids = process_files(args.xml_folder)
 
 # Apply filtering
 final = pmc_citations_df[
@@ -390,8 +397,13 @@ final = pmc_citations_df[
 ]
 
 #final = pmc_citations_df[(pmc_citations_df['DOI'] == target_doi) | (pmc_citations_df['Cited title'] == target_title)]
+with open('pmids_to_check.csv', 'w') as f:
+    f.write(f"PMID\n")
+    for item in missing_pmids:
+        f.write(f"{item}\n")
 print(final)
 print(pmc_citations_df)
 #final.to_csv('Citing/citing_cc.tsv', sep = '\t', index=False)
 #pmc_citations_df = pmc_citations_df[pmc_citations_df['DOI'] != 'No DOI']
 pmc_citations_df.to_csv('cit.tsv', sep = '\t', index=False)    
+
