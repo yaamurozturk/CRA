@@ -14,8 +14,38 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_compl
 
 BASE_URL = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 missing_pmids = []
+pmids = []
 key = "fd895b77ece1cd582d9d2a40cc6d23f88008"
-path = "web_site"
+apiKey = '4d679c4998d5031c0b6a86e72f1b8c87'
+instToken = "ed2c69e1fa68fc3cba8fda583c8e4b25"
+path = os.getcwd()+"elsevier_xml"
+
+current_dir = os.getcwd()
+
+def crawlForPaper(doi,outputRep):
+    print("Try to crawl: "+doi)
+    #Publisher = re.sub('/.*','',doi)
+    folder = path#outputRep+"/elsevier_xml"
+    #print("Publisher:"+Publisher)
+    if not os.path.isdir(folder):
+        print("Creating:"+folder)
+        os.mkdir(folder)
+    else:
+        print ("Publisher subfolder exists")
+
+    if "10.1016/" in doi:
+        dstName = folder+"doi.xml"
+        if not os.path.isfile(dstName):
+            resp = requests.get("https://api.elsevier.com/content/article/doi/"+doi, params={"apiKey": apiKey, "instToken": "ed2c69e1fa68fc3cba8fda583c8e4b25", "httpAccept": "text/xml", "view": "FULL"})
+            #resp.raise_for_status
+            with open(dstName, 'w') as f:
+                f.write(resp.text)
+                print("Wrote: '"+dstName+"'")
+        else:
+            print("XML is already here: "+dstName)
+    else:
+        print("Not an Elsevier paper: "+doi)
+
 
 def find_section_titles(element):
     """Find both the nearest and top-level section titles."""
@@ -146,6 +176,71 @@ def seen_sent(seen, sentences, citation_text, rid, data, ref_dict, ref_id, full_
             continue 
         seen.add((rid, sentence))
         data.append(create_citation_row(ref_dict, rid, full_text, sentence, citing_doi, pmcid))
+
+def extract_elsevier_citations(xml_file):
+    try:
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+
+        ns = {
+            'ce': 'http://www.elsevier.com/xml/common',
+            'dtd': 'http://www.elsevier.com/xml/common/dtd',
+            'dc': 'http://purl.org/dc/elements/1.1/',
+            'mt': 'http://www.elsevier.com/xml/common/struct-bib/dtd'
+        }
+
+
+        citing_doi = root.findtext('.//dc:identifier', default='No DOI', namespaces=ns)
+        print(citing_doi)
+
+        ref_dict, ref_list = {}, []
+        
+        #for elem in root.iter():
+         #   print(elem.tag)
+        #refs = root.findall('.//{http://www.elsevier.com/xml/xocs/dtd}bib-reference') 
+        
+        for ref in root.findall('.//dtd:bib-reference',namespaces=ns):
+            #print(ref)
+            ref_id = ref.get('id')
+            #print(ref_id)
+            if not ref_id:
+                continue
+            ref_list.append(ref_id)
+
+            title_elem = ref.find('.//mt:maintitle', namespaces=ns)
+            title = title_elem.text.strip() if title_elem is not None and title_elem.text else "No title"
+
+            doi_elem = ref.find('.//dtd:doi', namespaces=ns)
+            doi = doi_elem.text.strip() if doi_elem is not None and doi_elem.text else None
+
+            ref_dict[ref_id] = {
+                "title": title,
+                "doi": doi if doi else "No DOI",
+            }
+        #print(ref_list)
+        data = []
+        seen = set()
+        for para in root.findall('.//dtd:para', namespaces=ns):
+            full_text = " ".join(para.itertext()).strip()
+            if not full_text:
+                continue
+
+            sentences = split_sentences(full_text)
+            xrefs = para.findall('.//dtd:cross-ref', namespaces=ns)
+
+            i = 0
+            while i < len(xrefs):
+                rid = xrefs[i].get("refid")
+                citation_text = xrefs[i].text
+
+                seen_sent(seen, sentences, citation_text, rid, data, ref_dict, rid, full_text, citing_doi,'Not a Pubmed paper')
+                i += 1
+
+        return pd.DataFrame(data, columns=["DOI", "Cited title", "Citation ID", "CC paragraph", "Citation_context", "Citing DOI","PMCID"])
+
+    except Exception as e:
+        print(f"Error processing file {xml_file}: {str(e)}")
+        return pd.DataFrame()
 
 def extract_pmc_citations(xml_file):
     try:
@@ -345,7 +440,7 @@ def doi_to_pmcid(dois):
 
     # Convert results to DataFrame and save as CSV
     result_df = pd.DataFrame(results, columns=['DOI', 'PMID', 'PMCID'])
-    result_df.to_csv('doi_to_pmcids.tsv', index=False, sep='\t')
+    #result_df.to_csv('doi_to_pmcids.tsv', index=False, sep='\t')
 
     # Record end time
     end = time.time()
@@ -353,7 +448,64 @@ def doi_to_pmcid(dois):
     #print(f"Completed in {round(end-start, 2)} seconds.")
     return result_df
 
+def convert(pmids):
+    batch_size = 150  # Number of DOIs per request
+    nb_workers = 5  # Number of parallel requests
+    results = []
+
+    # Split DOIs into batches of 10
+    batches = [pmids[i:i + batch_size] for i in range(0, len(pmids), batch_size)]
+
+    # Execute requests in parallel using ThreadPoolExecutor with 5 workers
+    with ThreadPoolExecutor(max_workers = nb_workers) as executor:
+        results_list = list(executor.map(fetch_ids_batch, batches)) # This returns a list of lists (batches) of tuples
+
+    # Flatten results (since each batch returns a list)
+    results = [item for sublist in results_list for item in sublist] # This is a list of tuples after flattening the batches lists
+    result_df = pd.DataFrame(results, columns=['DOI', 'PMID', 'PMCID'])
+    return result_df.PMCID
+
+def normalize_dashes(text):
+    """Convert all dash-like characters to standard hyphens."""
+    return re.sub(r'[‐‒–—―−]', '-', str(text).lower())
+
+def match_min_phrase(cited_title, target_title):
+    """Check if cited_title contains the first critical part of target_title."""
+    if pd.isnull(cited_title) or pd.isnull(target_title):
+        return False
+    min_phrase = "Protease inhibitors from marine actinobacteria as a potential"
+    # Normalize both strings
+    normalized_cited = normalize_dashes(cited_title)
+    normalized_phrase = normalize_dashes(min_phrase)
+    
+    return normalized_phrase in normalized_cited
+
+
 """############### Download PubMed XML files #########""" 
+
+def download_pmc_xml(pmid): # To get the xml for the papers citing the given DOI
+    url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&linkname=pubmed_pubmed_citedin&id={pmid}&rettype=xml"
+    response = requests.get(url, timeout=30)
+    if response.status_code == 200:
+       
+        file_path = f"{pmid}.xml"
+        with open(f"citing_{pmid}", "wb") as f:
+            f.write(response.content)  # Save response XML
+        print(f" File downloaded")
+        return  # Exit function if successful
+
+    #  Handle Other Errors 
+    print(f" Failed ... (Status {response.status_code})")
+
+
+def extract_pmids(xml_file):
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+    #print(root.findall(".//Link"))
+    for link in root.findall(".//Id"):
+        text = " ".join(link.itertext()).strip()
+        pmids.append(text)
+    return pmids
 
 def fetch_pubmed_articles(pmc_ids, batch_size=100):
     """Fetch articles in batches from PMC using E-utilities."""
