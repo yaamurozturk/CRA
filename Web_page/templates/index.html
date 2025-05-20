@@ -88,14 +88,32 @@
         <div class="col-md-6 mb-4">
             <div class="card shadow-sm h-100">
                 <div class="card-body">
-                    <h4 class="mb-3 text-success"><strong>Citation Contexts Extraction</strong></h4>
+                    <h4 class="mb-3 text-success"><strong>Cited Citation Contexts Extraction</strong></h4>
                     <form id="doiForm" action="/citations" method="POST">
                         <div class="mb-3">
-                             <label for="doi" class="form-label">Retrive all Citation Contexts from the submitted DOI </label>
+                             <label for="doi" class="form-label">Retrive all Citation Contexts found in the submitted DOI </label>
                             <input class="form-control" type="text" name="doi" id="doi" placeholder="10.xxxx/xxxx" required>
                         </div>
                         <div class="d-grid gap-2 d-md-flex">
                             <button type="submit" class="btn btn-success flex-grow-1">Submit</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+     </div>   
+      <div class="row">
+             <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h4 class="mb-3 text-warning"><strong>Citing Citation Contexts Extraction </strong></h4>
+                    <form id="doiForm" action="/citing" method="POST">
+                        <div class="mb-3">
+                             <label for="doi" class="form-label">Retrive all Citation Contexts from the PMC open access papers citing the submitted DOI </label>
+                            <input class="form-control" type="text" name="doi" id="doi" placeholder="10.xxxx/xxxx" required>
+                            <input class="form-control" type="text" name="title" id="title" placeholder="Title" >
+                        </div>
+                        <div class="d-grid gap-2 d-md-flex">
+                            <button type="submit" class="btn btn-warning flex-grow-1">Submit</button>
                     </form>
                 </div>
             </div>
@@ -120,8 +138,7 @@
 </div>
 
  <font size="6" face="times new roman" color="#dc3545"><strong>Retraction Watch Analytics</strong></font>
-    <iframe src="/dashboard/" style="width: 100%; height: 600px; border: none;"></iframe>
-    <p>Explore the retracted papers count per category using the interactive dashboard above.</p>
+    <iframe src="/dashboard/" style="width: 100%; height: 900px; border: none;"></iframe>
 <script>
 function submitToRetract() {
     const doi = document.getElementById('doi').value;
