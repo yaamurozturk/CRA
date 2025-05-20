@@ -17,7 +17,7 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 
 server = Flask(__name__)
-app.secret_key = 'dev-secret-key-123'
+server.secret_key = 'dev-secret-key-123'
 
 BASE_DIR = "../" #os.path.dirname(os.path.abspath(__file__)) # current directory
 db_path = os.path.join(BASE_DIR, "database")
@@ -26,7 +26,7 @@ df = pd.read_csv('../Retraction/retraction_watch.csv', dtype=str)
 df['RetractionDate'] = pd.to_datetime(df['RetractionDate'], format='%m/%d/%Y %H:%M', errors='coerce')
 df['Year'] = df['RetractionDate'].dt.year
 df = df.dropna(subset=['Year'])
-columns = ['Subject','Journal','Publisher','Year']
+columns = ['Journal','Publisher','ArticleType','Year']
 
 app = dash.Dash(__name__, server=server, url_base_pathname='/dashboard/')
 
@@ -129,13 +129,16 @@ def citations():
         ids = doi_to_pmcid([doi])
         print(ids)
         pmcid = ids[ids.PMCID != 'Not Found']
-        p = pmcid.PMCID#.head(5)
-        count = fetch_pubmed_articles(p)
-        print(f'{count} xml files were downloaded from PMC')
-        pmc_citations_df = process_files(path)
-        print(pmc_citations_df)
-        #pmc_citations_df.to_csv('cc_only_inline.tsv', sep = '\t', index=False)
-        #shutil.rmtree(path)
+        if not pmcid.empty:
+            p = pmcid.PMCID#.head(5)
+            count = fetch_pubmed_articles(p)
+            print(f'{count} xml files were downloaded from PMC')
+            pmc_citations_df = process_files(path)
+            print(pmc_citations_df)
+        else:
+            crawlForPaper(doi,current_dir)
+            pmc_citations_df = extract_elsevier_citations('doi.xml')
+        shutil.rmtree(path)
         return render_template(
             "results.html",
             filename=doi,
@@ -145,6 +148,39 @@ def citations():
             zip=zip
         )
     return redirect('/')
+
+
+@server.route('/citing', methods=['POST'])
+def citing():
+    doi = request.form.get('doi')
+    title = request.form.get('title')
+    if doi:
+        ids = doi_to_pmcid([doi])
+        print(ids)
+        download_pmc_xml(ids['PMID'][0])
+        file = 'citing_'+ids['PMID'][0]
+        print(file)
+        
+        pmids = extract_pmids(file)
+        print(pmids)        
+        pmcids = convert(pmids)
+        print(pmcids)
+        count = fetch_pubmed_articles(pmcids)
+        print(f'{count} xml files were downloaded from PMC')
+        pmc_citations_df = process_files(path)
+        print(pmc_citations_df)
+        shutil.rmtree(path)
+        final = pmc_citations_df[(pmc_citations_df['DOI'] == doi)|(pmc_citations_df['Cited title'].apply(lambda x: match_min_phrase(x, title) if pd.notna(x) else False))]
+        return render_template(
+            "results_citing.html",
+            doi=doi,
+            result_df=final, 
+            column_names=final.columns.values,
+            row_data=list(final.values.tolist()),
+            zip=zip
+        )
+    return redirect('/')
+
 
 @server.route('/process_doi', methods=['POST'])
 def process_doi():
