@@ -15,6 +15,7 @@ import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
 import plotly.express as px
+from  classification.classi import *
 
 server = Flask(__name__)
 server.secret_key = 'dev-secret-key-123'
@@ -26,7 +27,7 @@ df = pd.read_csv('../Retraction/retraction_watch.csv', dtype=str)
 df['RetractionDate'] = pd.to_datetime(df['RetractionDate'], format='%m/%d/%Y %H:%M', errors='coerce')
 df['Year'] = df['RetractionDate'].dt.year
 df = df.dropna(subset=['Year'])
-columns = ['Journal','Publisher','ArticleType','Year']
+columns = ['Subject','Journal','Publisher','ArticleType','Year']
 
 app = dash.Dash(__name__, server=server, url_base_pathname='/dashboard/')
 
@@ -112,12 +113,15 @@ def upload_file():
     if f and f.filename:
         filename = f.filename
         result_df = extract_pmc_citations(f) 
+        result = classif(result_df)
+        result =  result[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","predicted_label","DOI", "Cited title"]]
+        print(result)
         return render_template(
             "results.html",
             filename=filename,
-            result_df=result_df, 
-            column_names=result_df.columns.values,
-            row_data=list(result_df.values.tolist()),
+            result_df=result, 
+            column_names=result.columns.values,
+            row_data=list(result.values.tolist()),
             zip=zip
         )
     return redirect('/')
@@ -125,7 +129,14 @@ def upload_file():
 @server.route('/citations', methods=['POST'])
 def citations():
     doi = request.form.get('doi')
-    if doi:
+    pmid = request.form.get('pmid')
+    if (pmid) and (doi):
+        pmcids = convert([pmid])
+        print(pmcids)
+        count = fetch_pubmed_articles(pmcids)
+        print(f'{count} xml files were downloaded from PMC')
+        pmc_citations_df = process_files(path)
+    elif doi:
         ids = doi_to_pmcid([doi])
         print(ids)
         pmcid = ids[ids.PMCID != 'Not Found']
@@ -139,28 +150,28 @@ def citations():
             crawlForPaper(doi,current_dir)
             pmc_citations_df = extract_elsevier_citations('doi.xml')
         shutil.rmtree(path)
-        return render_template(
-            "results.html",
-            filename=doi,
-            result_df=pmc_citations_df, 
-            column_names=pmc_citations_df.columns.values,
-            row_data=list(pmc_citations_df.values.tolist()),
-            zip=zip
-        )
+    return render_template(
+        "results.html",
+        filename=doi,
+        result_df=pmc_citations_df, 
+        column_names=pmc_citations_df.columns.values,
+        row_data=list(pmc_citations_df.values.tolist()),
+        zip=zip
+    )
     return redirect('/')
 
 
 @server.route('/citing', methods=['POST'])
 def citing():
     doi = request.form.get('doi')
+    pmid = request.form.get('pmid')
     title = request.form.get('title')
     if doi:
-        ids = doi_to_pmcid([doi])
-        print(ids)
-        download_pmc_xml(ids['PMID'][0])
-        file = 'citing_'+ids['PMID'][0]
+        #ids = doi_to_pmcid([doi])
+        #print(ids)
+        download_pmc_xml(pmid)
+        file = 'citing_'+pmid#+ids['PMID'][0]
         print(file)
-        
         pmids = extract_pmids(file)
         print(pmids)        
         pmcids = convert(pmids)
@@ -170,7 +181,9 @@ def citing():
         pmc_citations_df = process_files(path)
         print(pmc_citations_df)
         shutil.rmtree(path)
-        final = pmc_citations_df[(pmc_citations_df['DOI'] == doi)|(pmc_citations_df['Cited title'].apply(lambda x: match_min_phrase(x, title) if pd.notna(x) else False))]
+        final = pmc_citations_df[(pmc_citations_df['DOI'] == doi)]#|(pmc_citations_df['Cited title'].apply(lambda x: match_min_phrase(x, title) if pd.notna(x) else False))]
+        final =  final[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","DOI", "Cited title"]]
+        print(final)
         return render_template(
             "results_citing.html",
             doi=doi,
