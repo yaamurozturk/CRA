@@ -18,10 +18,10 @@ pmids = []
 key = "fd895b77ece1cd582d9d2a40cc6d23f88008"
 apiKey = '4d679c4998d5031c0b6a86e72f1b8c87'
 instToken = "ed2c69e1fa68fc3cba8fda583c8e4b25"
-path = os.getcwd()+"elsevier_xml"
+path = os.getcwd()+"/elsevier_xml"
+
 
 current_dir = os.getcwd()
-
 def crawlForPaper(doi,outputRep):
     print("Try to crawl: "+doi)
     #Publisher = re.sub('/.*','',doi)
@@ -71,6 +71,7 @@ def find_section_titles(element):
 
     return nearest_title or "Unknown Section", top_level_title or "Unknown Section"
 
+path = os.getcwd()+'/pmc_xml'
 def fetch_dois_batch(pmids):
     batch_size = 20
     results = {}
@@ -161,21 +162,23 @@ def expand_citation_range(start_id, end_id, ref_list):
     return sorted(expanded, key=lambda x: int(parse_components(x)[1]))
 
 
-def seen_sent(seen, sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid):  
+def seen_sent(seen, sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid,ppd, nesrest_level_title ,  top_level_title): 
+    if not ppd:
+        ppd = 'Not found'
+    matching_sentences = [full_text]
     for i,s in enumerate(sentences):
         if (citation_text and citation_text in s) or rid in s:
             sent = ' '.join(sentences[max(i-1,0): min(len(sentences),i +2)])
             #sent = re.sub(r'[^a-zA-Z0-9., %]', '', sent, flags=re.ASCII)
             matching_sentences = [sent]
             
-    if not matching_sentences:
-        matching_sentences = [full_text]
+       
     
     for sentence in matching_sentences:
         if (rid, sentence) in seen:
             continue 
         seen.add((rid, sentence))
-        data.append(create_citation_row(ref_dict, rid, full_text, sentence, citing_doi, pmcid))
+        data.append(create_citation_row(ref_dict, rid, full_text, sentence,ppd ,citing_doi, pmcid, nesrest_level_title ,  top_level_title))
 
 def extract_elsevier_citations(xml_file):
     try:
@@ -236,7 +239,7 @@ def extract_elsevier_citations(xml_file):
                 seen_sent(seen, sentences, citation_text, rid, data, ref_dict, rid, full_text, citing_doi,'Not a Pubmed paper')
                 i += 1
 
-        return pd.DataFrame(data, columns=["DOI", "Cited title", "Citation ID", "CC paragraph", "Citation_context", "Citing DOI","PMCID"])
+        return pd.DataFrame(data, columns=["DOI", "Cited title", "Citation ID", "CC paragraph", "Citation_context", "Citing DOI","PMCID" , "Section" ,  "IMRAD", "Publication Date"])
 
     except Exception as e:
         print(f"Error processing file {xml_file}: {str(e)}")
@@ -275,9 +278,21 @@ def extract_pmc_citations(xml_file):
                 "pmid": pmid
             }
 
+        date_elem = root.find(".//pub-date[@date-type='ppub']")
+
+        if date_elem is not None:
+            day = date_elem.findtext("day", "").zfill(2)
+            month = date_elem.findtext("month", "").zfill(2)
+            year = date_elem.findtext("year", "")  
+            ppd = f"{day}/{month}/{year}"
+        else:
+            ppd = "Not found"
+
+
         data = []
         seen = set()
         for paragraph in article.findall(".//p"):
+            nesrest_level_title ,  top_level_title = find_section_titles(paragraph)
             full_text = " ".join(paragraph.itertext()).strip()
             if not full_text:
                 continue
@@ -295,13 +310,13 @@ def extract_pmc_citations(xml_file):
                         end_rid = xrefs[i+1].get("rid")
                         expanded = expand_citation_range(rid, end_rid, ref_list)
                         for ref_id in expanded:
-                            seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid)
+                            seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid, nesrest_level_title ,  top_level_title,ppd)
                             #data.append(create_citation_row(ref_dict, ref_id, full_text, sentence, citing_doi, pmcid))
                         i += 2
                         continue
                 # Check for stacked individual citations: <xref/><xref/><xref/>
                 if any(sep in (xrefs[i].tail or '') for sep in [',', ';']):
-                    seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, full_text,  citing_doi, pmcid)
+                    seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, full_text,  citing_doi, pmcid, nesrest_level_title ,  top_level_title,ppd)
                     #if rid == 'B45':
                      #   print(sentence)
                     
@@ -309,12 +324,12 @@ def extract_pmc_citations(xml_file):
                     continue
 
                 # Single xref
-                seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid)
+                seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid, nesrest_level_title ,  top_level_title, ppd)
 
                 #data.append(create_citation_row(ref_dict, rid, full_text,  citing_doi, pmcid))
                 i += 1
 
-        return pd.DataFrame(data, columns=["DOI", "Cited title", "Citation ID", "CC paragraph", "Citation_context", "Citing DOI", "PMCID"])
+        return pd.DataFrame(data, columns=["DOI", "Cited title", "Citation ID", "CC paragraph", "Citation_context", "Citing DOI", "PMCID", "Section" ,  "IMRAD", "Publication Date"])
 
     except Exception as e:
         print(f"Error processing file {xml_file}: {str(e)}")
@@ -322,7 +337,7 @@ def extract_pmc_citations(xml_file):
 
 
 
-def create_citation_row(ref_dict, ref_id, text, sentence, citing_doi, pmcid):
+def create_citation_row(ref_dict, ref_id, text, sentence,ppd, citing_doi, pmcid, nesrest_level_title ='Unknown' ,  top_level_title='Unknown'):
     ref_info = ref_dict.get(ref_id, {"title": "No title", "doi": "No DOI"})
     return [
         ref_info["doi"],
@@ -331,7 +346,11 @@ def create_citation_row(ref_dict, ref_id, text, sentence, citing_doi, pmcid):
         text,
         sentence,
         citing_doi,
-        pmcid
+        pmcid,
+        ppd,
+        nesrest_level_title,
+        top_level_title
+        
     ]
 
 def process_files(directory):
