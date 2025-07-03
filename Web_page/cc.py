@@ -18,31 +18,28 @@ pmids = []
 key = "fd895b77ece1cd582d9d2a40cc6d23f88008"
 apiKey = '4d679c4998d5031c0b6a86e72f1b8c87'
 instToken = "ed2c69e1fa68fc3cba8fda583c8e4b25"
-path = os.getcwd()+"/elsevier_xml"
 
-
-current_dir = os.getcwd()
-def crawlForPaper(doi,outputRep):
+def crawlForPaper(doi):
     print("Try to crawl: "+doi)
     #Publisher = re.sub('/.*','',doi)
-    folder = path#outputRep+"/elsevier_xml"
+    folder = os.getcwd()#outputRep+"/elsevier_xml"
     #print("Publisher:"+Publisher)
     if not os.path.isdir(folder):
         print("Creating:"+folder)
         os.mkdir(folder)
     else:
         print ("Publisher subfolder exists")
-
-    if "10.1016/" in doi:
-        dstName = folder+"doi.xml"
-        if not os.path.isfile(dstName):
-            resp = requests.get("https://api.elsevier.com/content/article/doi/"+doi, params={"apiKey": apiKey, "instToken": "ed2c69e1fa68fc3cba8fda583c8e4b25", "httpAccept": "text/xml", "view": "FULL"})
-            #resp.raise_for_status
-            with open(dstName, 'w') as f:
-                f.write(resp.text)
-                print("Wrote: '"+dstName+"'")
-        else:
-            print("XML is already here: "+dstName)
+    
+    if "10." in doi:
+        dstName = os.getcwd()+"/doi.xml"
+        #if not os.path.isfile(dstName):
+        resp = requests.get("https://api.elsevier.com/content/article/doi/"+doi, params={"apiKey": apiKey, "instToken": "ed2c69e1fa68fc3cba8fda583c8e4b25", "httpAccept": "text/xml", "view": "FULL"})
+        #resp.raise_for_status
+        with open(dstName, 'w') as f:
+            f.write(resp.text)
+            print("Wrote: '"+dstName+"'")
+        #else:
+        #    print("XML is already here: "+dstName)
     else:
         print("Not an Elsevier paper: "+doi)
 
@@ -71,8 +68,9 @@ def find_section_titles(element):
 
     return nearest_title or "Unknown Section", top_level_title or "Unknown Section"
 
-path = os.getcwd()+'/pmc_xml'
+
 def fetch_dois_batch(pmids):
+    
     batch_size = 20
     results = {}
     j = 0
@@ -162,7 +160,7 @@ def expand_citation_range(start_id, end_id, ref_list):
     return sorted(expanded, key=lambda x: int(parse_components(x)[1]))
 
 
-def seen_sent(seen, sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid,ppd, nesrest_level_title ,  top_level_title): 
+def seen_sent(seen, sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid='Not Found',ppd='Not Found', nesrest_level_title ='Not Found',  top_level_title='Not Found'): 
     if not ppd:
         ppd = 'Not found'
     matching_sentences = [full_text]
@@ -236,7 +234,7 @@ def extract_elsevier_citations(xml_file):
                 rid = xrefs[i].get("refid")
                 citation_text = xrefs[i].text
 
-                seen_sent(seen, sentences, citation_text, rid, data, ref_dict, rid, full_text, citing_doi,'Not a Pubmed paper')
+                seen_sent(seen, sentences, citation_text, rid, data, ref_dict, rid, full_text, citing_doi)
                 i += 1
 
         return pd.DataFrame(data, columns=["DOI", "Cited title", "Citation ID", "CC paragraph", "Citation_context", "Citing DOI","PMCID" , "Section" ,  "IMRAD", "Publication Date"])
@@ -248,6 +246,16 @@ def extract_elsevier_citations(xml_file):
 def extract_pmc_citations(xml_file):
     try:
         tree = ET.parse(xml_file)
+        pub_date = tree.find('.//article-meta//pub-date[@date-type="pub"]')
+        if pub_date is None:
+            pub_date = tree.find('.//article-meta//pub-date')  # fallback
+        
+        if pub_date is not None:
+            year = pub_date.find('year').text if pub_date.find('year') is not None else ''
+            month = pub_date.find('month').text if pub_date.find('month') is not None else ''
+            day = pub_date.find('day').text if pub_date.find('day') is not None else ''
+        ppd = f"{day}-{month}-{year}"
+
         root = tree.getroot()
         article = next(root.iter("article"), None)
         if article is None:
@@ -278,15 +286,8 @@ def extract_pmc_citations(xml_file):
                 "pmid": pmid
             }
 
-        date_elem = root.find(".//pub-date[@date-type='ppub']")
 
-        if date_elem is not None:
-            day = date_elem.findtext("day", "").zfill(2)
-            month = date_elem.findtext("month", "").zfill(2)
-            year = date_elem.findtext("year", "")  
-            ppd = f"{day}/{month}/{year}"
-        else:
-            ppd = "Not found"
+        print(ppd)
 
 
         data = []
@@ -528,6 +529,7 @@ def extract_pmids(xml_file):
 
 def fetch_pubmed_articles(pmc_ids, batch_size=100):
     """Fetch articles in batches from PMC using E-utilities."""
+    path = os.getcwd()+'/pmc_xml'
     count = 0  # Successfully downloaded xml files
     if os.path.exists(path):  
         shutil.rmtree(path)
@@ -591,5 +593,5 @@ def fetch_pubmed_articles(pmc_ids, batch_size=100):
             print(f"Unexpected error processing batch {i//batch_size + 1}: {str(e)}")
             continue
             
-    return count
+    return count , path
 
