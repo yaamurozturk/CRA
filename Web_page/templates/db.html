@@ -34,17 +34,22 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-        }
-        /* Hover effect to show full text */
-        .text-cell:hover {
+            transition: all 0.2s ease-in-out;
             position: relative;
-            z-index: 100;
+            z-index: 1;
+        }
+
+        .text-cell:hover {
             white-space: normal;
             overflow: visible;
+            text-overflow: unset;
             background: white;
             box-shadow: 0 0 10px rgba(0,0,0,0.2);
             max-width: 500px;
+            padding: 10px;
+            z-index: 10;
         }
+
         /* Make the table responsive */
         .table-responsive {
             border-radius: 8px;
@@ -104,32 +109,52 @@
     .popup {
         display: none;
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
         z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.4); /* Semi-transparent background */
         justify-content: center;
         align-items: center;
     }
-    
+
+
     .popup-content {
-        background-color: white;
-        padding: 20px;
-        border-radius: 5px;
-        width: 100%;
+        background:  #d7bde2 ;
+        padding: 20px 30px;
+        border-radius: 12px;
+        width: 80%;
+        max-width: 500px;
+        max-height: 88vh; /* Limit height to 80% of viewport */
+        overflow-y: auto; /* Enable vertical scrolling when needed */
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
         position: relative;
+        font-family: Arial, sans-serif;
+        color: #333;
     }
-    
-    .close {
+
+    /* Close button */
+    .popup-content .close {
         position: absolute;
-        top: 10px;
         right: 15px;
-        font-size: 20px;
+        top: 10px;
+        font-size: 24px;
+        font-weight: bold;
+        color: #444;
         cursor: pointer;
     }
-    
+
+    .popup-content h3 {
+        margin-top: 0;
+        color: #2a6d8c;
+    }
+
+    .popup-content p {
+        margin: 10px 0;
+    }
+
+  
     .clickable-cell {
         cursor: pointer;
         color: blue;
@@ -143,12 +168,13 @@
 </head>
 <body>
     <div class="container">
-        <h2 class="mb-4"><strong>Retraction Status for : {{ doi }} </strong></h2>
+        
         
         <!-- Combined Status Card -->
         <div class="card status-card {% if retracted %}retracted-true{% else %}retracted-false{% endif %}">
             <div class="card-header {% if retracted %}bg-danger{% else %}bg-success{% endif %} text-white">
-                <h5 class="mb-0">DOI: {{ doi }}</h5>
+                <h2 class="mb-4"><strong>Retraction Status for : {{ doi }} </strong></h2>
+
             </div>
             <div class="card-body">
             
@@ -187,43 +213,12 @@
             </div>
         </div>
     <div class="container">
-        <h2 class="mb-4"><strong>Citation contexts from papers citing: {{doi}}</strong></h2>
+        <h2 class="mb-4"><strong>{{cited}} Citation contexts in {{doi}} citing {{cited_count}} retracted papers</strong></h2>
         <div class="mb-3">
             <button id="downloadTable1" class="btn btn-success">Download as CSV</button>
         </div>
         <div class="table-responsive">
-        {% if results %}
-            <table id="resultsTable" class="table table-hover table-striped">
-                <thead>
-                    <tr>
-                        {% for col in column_names %}
-                        <th style="min-width: 100px;">{{ col }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in results %}
-                        <tr class="popup-trigger">
-                            {% for cell in row %}
-                                <td class="{% if cell is not none and cell|length > 10 %}text-cell{% endif %} {% if loop.first %}clickable-cell{% endif %}">
-                                    {{ cell }}
-                                </td>
-                            {% endfor %}
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>No results found for this DOI.</p>
-        {% endif %}
-        </div>
-        
-        <h2 class="mb-4"><strong>Citation in {{doi}} to retracted papers</strong></h2>
-        <div class="mb-3">
-            <button id="downloadTable2" class="btn btn-success">Download as CSV</button>
-        </div>
-        <div class="table-responsive">
-        {% if resu %}
+        {% if resu is not none and resu|length > 0 %}
             <table id="resultsTable2" class="table table-hover table-striped">
                 <thead>
                     <tr>
@@ -232,16 +227,17 @@
                         {% endfor %}
                     </tr>
                 </thead>
-                <tbody>
-                    {% for row in resu %}
-                        <tr class="popup-trigger">
-                            {% for cell in row %}
-                                <td class="{% if cell is not none and cell|length > 10 %}text-cell{% endif %} {% if loop.first %}clickable-cell{% endif %}">
-                                    {{ cell }}
-                                </td>
-                            {% endfor %}
-                        </tr>
-                    {% endfor %}
+                {% for row in resu %}
+                    {% if row|length == resu_column_names|length %}
+                    <tr class="popup-trigger">
+                        {% for cell in row %}
+                            <td class="{% if cell is not none and cell|length > 10 %}text-cell{% endif %} {% if loop.first %}clickable-cell{% endif %}">
+                                {{ cell }}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endif %}
+                {% endfor %}
                 </tbody>
             </table>
         {% else %}
@@ -252,7 +248,42 @@
             <a href="{{ url_for('index') }}" class="btn btn-primary">Back to Home</a>
         </div>
     </div>
-
+        <div class="container">
+        <h2 class="mb-4"><strong> {{citing}} Citation contexts from {{citing_count}} papers citing: {{doi}}</strong></h2>
+        <div class="mb-3">
+            <button id="downloadTable2" class="btn btn-success">Download as CSV</button>
+        </div>
+        <div class="table-responsive">
+        {% if merged_citing is not none and merged_citing|length > 0 %}
+            <table id="resultsTable2" class="table table-hover table-striped">
+                <thead>
+                    <tr>
+                        {% for col in merged_citing_cols %}
+                        <th style="min-width: 100px;">{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                {% for row in merged_citing %}
+                    {% if row|length == merged_citing_cols|length %}
+                    <tr class="popup-trigger popup-table2">
+                        {% for cell in row %}
+                            <td class="{% if cell is not none and cell|length > 10 %}text-cell{% endif %} {% if loop.first %}clickable-cell{% endif %}">
+                                {{ cell }}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No results found for papers citing this DOI.</p>
+        {% endif %}
+        </div>
+        <div class="text-center mt-4">
+            <a href="{{ url_for('index') }}" class="btn btn-primary">Back to Home</a>
+        </div>
+    </div>
 
 <div id="infoPopup" class="popup">
     <div class="popup-content">
@@ -368,9 +399,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Extract values (assuming you want specific columns)
             const col1Value = cells[0].textContent;
-            const col2Value = cells[3].textContent; 
-            const col3Value = cells[4].textContent; 
-            const col4Value = cells[5].textContent; 
+            const col2Value = cells[4].textContent; 
+            const col3Value = cells[10].textContent; 
+            const col4Value = cells[11].textContent; 
+            
             
             
             // Display in popup
@@ -379,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p><strong>Citation Context:</strong> ${col2Value}</p>
                 <p><strong>Retraction Reasons:</strong> ${col3Value}</p>
                 <p><strong>Retraction Date:</strong> ${col4Value}</p>
-                <!-- Add more columns dynamically -->
+                
             `;
             
             popup.style.display = 'flex';
