@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Citation Results</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <style>
+        body {
+            font-family: "Times New Roman", Times, serif;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        .container {
+            max-width: 95%;
+            margin: 0 auto;
+        }
+        /* Improved table styling */
+        .table {
+            border-collapse: separate;
+            border-spacing: 0;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .table thead th {
+            background-color: #2c3e50;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        /* Text wrapping for specific columns */
+        .text-cell {
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* Hover effect to show full text */
+        .text-cell:hover {
+            position: relative;
+            z-index: 100;
+            white-space: normal;
+            overflow: visible;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            max-width: 500px;
+        }
+        /* Make the table responsive */
+        .table-responsive {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .table-info {
+            --bs-table-bg: #d1ecf1; /* Light blue */
+            --bs-table-striped-bg: #c6e6eb; /* Slightly darker for striped */
+            --bs-table-hover-bg: #bbdfe5; /* Even darker for hover */
+        }
+            .clickable {
+        cursor: pointer;
+        color: blue;
+        text-decoration: underline;
+    }
+    
+/* Popup styling */
+    .popup {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .popup-content {
+        background-color: white;
+        padding: 20px;
+        border-radius: 5px;
+        width: 100%;
+        position: relative;
+    }
+    
+    .close {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 20px;
+        cursor: pointer;
+    }
+    
+    .clickable-cell {
+        cursor: pointer;
+        color: blue;
+        text-decoration: underline;
+    }
+    
+    .clickable-cell:hover {
+        color: darkblue;
+    }
+    </style>
+</head>
+<body class="p-4">
+    <div class="container">
+        {% if row_data is not none and row_data %}
+            <h2 class="mb-4">{{ row_data | length }} Citation Contexts found in PMC papers Citing {{ doi }}</h2>
+            <button id="downloadTable1" class="btn btn-success mb-3">Download as CSV</button>
+            
+            <div class="table-responsive">
+                <table id="resultsTable" class="table table-hover table-striped">
+                    <thead>
+                        <tr class="table-info">
+                            {% for col in column_names %}
+                            <th class="align-middle">{{ col }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in row_data %}
+                        <tr class="popup-trigger">
+                            {% for cell in row %}
+                                <td class="{% if cell is not none and cell|length > 10 %}text-cell{% endif %} {% if loop.first %}clickable-cell{% endif %}">
+                                    {{ cell }}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-warning text-center" role="alert">
+                <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-info-lg" viewBox="0 0 16 16">
+                    <path d="m9.708 6.075-3.024.379-.108.502.595.108c.387.093.464.232.38.619l-.975 4.577c-.255 1.183.14 1.74 1.067 1.74.72 0 1.554-.332 1.933-.789l.116-.549c-.263.232-.65.325-.905.325-.363 0-.494-.255-.402-.704zm.091-2.755a1.32 1.32 0 1 1-2.64 0 1.32 1.32 0 0 1 2.64 0"/>
+                </svg>
+                <span class="ms-2">No full text is available for this article, so no citations could be extracted.</span>
+            </div>
+        {% endif %}
+        
+        <div class="text-center mt-4">
+            <a href="/" class="btn btn-info">Back to Home</a>
+        </div>
+    </div>
+    
+
+<div id="infoPopup" class="popup">
+    <div class="popup-content">
+        <span class="close">&times;</span>
+        <h3>Details</h3>
+        <div id="popupData"></div>
+    </div>
+</div>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    
+<script>
+    $(document).ready(function() {
+        {% if row_data is not none and row_data %}
+            var table = $('#resultsTable').DataTable({
+                pageLength: 10,
+                lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "All"]],
+                scrollX: true,
+                responsive: true,
+                dom: '<"top"lf>rt<"bottom"ip>',
+                language: {
+                    search: "_INPUT_",
+                    searchPlaceholder: "Search citations...",
+                },
+                initComplete: function() {
+                    $('.dataTables_filter input').addClass('form-control');
+                    $('.dataTables_length select').addClass('form-select');
+                }
+            });
+        {% endif %}
+
+        function downloadTableAsCSV(table, filename) {
+            // Get all data from DataTables (including non-visible rows)
+            const data = table.rows().data();
+            
+            // Process headers
+            const headers = [];
+            table.columns().header().each(function() {
+                headers.push('"' + $(this).text().replace(/"/g, '""') + '"');
+            });
+            
+            // Process rows
+            const rows = [headers.join(',')];
+            
+            for (let i = 0; i < data.length; i++) {
+                const rowData = data[i];
+                const row = [];
+                
+                for (let j = 0; j < rowData.length; j++) {
+                    // Clean data to remove line breaks and extra spaces, and escape quotes
+                    const cellData = String(rowData[j]).replace(/(\r\n|\n|\r)/gm, '')
+                                                      .replace(/(\s\s)/gm, ' ')
+                                                      .replace(/"/g, '""');
+                    row.push('"' + cellData + '"');
+                }
+                
+                rows.push(row.join(','));
+            }
+            
+            const csvContent = rows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        $('#downloadTable1').click(function() {
+            downloadTableAsCSV(table, 'citation_contexts.csv');
+        });
+    });
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    const clickableCells = document.querySelectorAll('.clickable-cell');
+    const popup = document.getElementById('infoPopup');
+    const popupData = document.getElementById('popupData');
+    const closeBtn = document.querySelector('.close');
+
+    clickableCells.forEach(cell => {
+        cell.addEventListener('click', function() {
+            const row = this.closest('tr');
+            const cells = row.querySelectorAll('td'); // Get all cells in the row
+            
+            // Extract values (assuming you want specific columns)
+            const col1Value = cells[0].textContent; // First column (the one clicked)
+            const col2Value = cells[3].textContent; // Second column
+            const col3Value = cells[6].textContent;
+            const col5Value = cells[5].textContent;
+          
+            
+            // Display in popup
+            popupData.innerHTML = `
+                <p><strong>Citing DOI:</strong> ${col1Value}</p>
+                <p><strong>Citation Context:</strong> ${col2Value}</p>
+               <p><strong>Publication Date: </strong> ${col3Value}</p>
+            `;
+            
+            popup.style.display = 'flex';
+        });
+    });
+
+    // Close popup logic (same as before)
+    closeBtn.addEventListener('click', () => popup.style.display = 'none');
+    popup.addEventListener('click', (e) => {
+        if (e.target === popup) popup.style.display = 'none';
+    });
+});
+</script>
+</body>
+</html>
