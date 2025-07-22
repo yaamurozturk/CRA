@@ -1,0 +1,10 @@
+require 
+requests
+pandas
+flask
+tqdm
+lxml
+dash
+transformers
+torch
+seaborn
