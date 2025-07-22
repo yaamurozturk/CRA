@@ -30,16 +30,16 @@ def crawlForPaper(doi):
     else:
         print ("Publisher subfolder exists")
     
-    if "10.1016/" in doi:
+    if "10." in doi:
         dstName = os.getcwd()+"/doi.xml"
-        if not os.path.isfile(dstName):
-            resp = requests.get("https://api.elsevier.com/content/article/doi/"+doi, params={"apiKey": apiKey, "instToken": "ed2c69e1fa68fc3cba8fda583c8e4b25", "httpAccept": "text/xml", "view": "FULL"})
-            #resp.raise_for_status
-            with open(dstName, 'w') as f:
-                f.write(resp.text)
-                print("Wrote: '"+dstName+"'")
-        else:
-            print("XML is already here: "+dstName)
+        #if not os.path.isfile(dstName):
+        resp = requests.get("https://api.elsevier.com/content/article/doi/"+doi, params={"apiKey": apiKey, "instToken": "ed2c69e1fa68fc3cba8fda583c8e4b25", "httpAccept": "text/xml", "view": "FULL"})
+        #resp.raise_for_status
+        with open(dstName, 'w') as f:
+            f.write(resp.text)
+            print("Wrote: '"+dstName+"'")
+        #else:
+        #    print("XML is already here: "+dstName)
     else:
         print("Not an Elsevier paper: "+doi)
 
@@ -160,7 +160,7 @@ def expand_citation_range(start_id, end_id, ref_list):
     return sorted(expanded, key=lambda x: int(parse_components(x)[1]))
 
 
-def seen_sent(seen, sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid,ppd, nesrest_level_title ,  top_level_title): 
+def seen_sent(seen, sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid='Not Found',ppd='Not Found', nesrest_level_title ='Not Found',  top_level_title='Not Found'): 
     if not ppd:
         ppd = 'Not found'
     matching_sentences = [full_text]
@@ -234,7 +234,7 @@ def extract_elsevier_citations(xml_file):
                 rid = xrefs[i].get("refid")
                 citation_text = xrefs[i].text
 
-                seen_sent(seen, sentences, citation_text, rid, data, ref_dict, rid, full_text, citing_doi,'No PMCID','Unknown','Unknown','Unknown')
+                seen_sent(seen, sentences, citation_text, rid, data, ref_dict, rid, full_text, citing_doi)
                 i += 1
 
         return pd.DataFrame(data, columns=["DOI", "Cited title", "Citation ID", "CC paragraph", "Citation_context", "Citing DOI","PMCID" , "Section" ,  "IMRAD", "Publication Date"])
@@ -242,6 +242,21 @@ def extract_elsevier_citations(xml_file):
     except Exception as e:
         print(f"Error processing file {xml_file}: {str(e)}")
         return pd.DataFrame()
+
+def get_tagged_text(paragraph):
+    parts = []
+    for elem in paragraph.iter():
+        if elem.tag == "xref" and elem.get("ref-type") == "bibr":
+            rid = elem.get("rid")
+            parts.append(f"[{rid[-3:]}]")
+            if elem.tail:
+                parts.append(elem.tail)
+        elif elem.text:
+            parts.append(elem.text)
+            if elem.tail:
+                parts.append(elem.tail)
+    return "".join(parts).strip()
+
 
 def extract_pmc_citations(xml_file):
     try:
@@ -292,12 +307,20 @@ def extract_pmc_citations(xml_file):
 
         data = []
         seen = set()
-        for paragraph in article.findall(".//p"):
+        """for paragraph in article.findall(".//p"):
             nesrest_level_title ,  top_level_title = find_section_titles(paragraph)
             full_text = " ".join(paragraph.itertext()).strip()
             if not full_text:
                 continue
             sentences = split_sentences(full_text)
+            xrefs = [elem for elem in paragraph.iter() if elem.tag == "xref" and elem.get("ref-type") == "bibr"]
+            """
+        for paragraph in article.findall(".//p"):
+            nesrest_level_title ,  top_level_title = find_section_titles(paragraph)
+            tagged_text = get_tagged_text(paragraph)
+            sentences = split_sentences(tagged_text)
+            if not tagged_text:
+                continue
             xrefs = [elem for elem in paragraph.iter() if elem.tag == "xref" and elem.get("ref-type") == "bibr"]
             i = 0
             while i < len(xrefs):
@@ -311,13 +334,13 @@ def extract_pmc_citations(xml_file):
                         end_rid = xrefs[i+1].get("rid")
                         expanded = expand_citation_range(rid, end_rid, ref_list)
                         for ref_id in expanded:
-                            seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid, nesrest_level_title ,  top_level_title,ppd)
+                            seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, tagged_text, citing_doi, pmcid, nesrest_level_title ,  top_level_title,ppd)
                             #data.append(create_citation_row(ref_dict, ref_id, full_text, sentence, citing_doi, pmcid))
                         i += 2
                         continue
                 # Check for stacked individual citations: <xref/><xref/><xref/>
                 if any(sep in (xrefs[i].tail or '') for sep in [',', ';']):
-                    seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, full_text,  citing_doi, pmcid, nesrest_level_title ,  top_level_title,ppd)
+                    seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, tagged_text,  citing_doi, pmcid, nesrest_level_title ,  top_level_title,ppd)
                     #if rid == 'B45':
                      #   print(sentence)
                     
@@ -325,7 +348,7 @@ def extract_pmc_citations(xml_file):
                     continue
 
                 # Single xref
-                seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid, nesrest_level_title ,  top_level_title, ppd)
+                seen_sent(seen,sentences, citation_text, rid, data, ref_dict, ref_id, tagged_text, citing_doi, pmcid, nesrest_level_title ,  top_level_title, ppd)
 
                 #data.append(create_citation_row(ref_dict, rid, full_text,  citing_doi, pmcid))
                 i += 1

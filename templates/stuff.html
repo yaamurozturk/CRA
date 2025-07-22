@@ -1,0 +1,45 @@
+                            data-col3="{{ row[Publication Date] }}" 
+                            data-col3="{{ row[Classification label] }}"
+
+                                           <p><strong>Publication Date :</strong> ${col3Value}</p>
+                <p><strong>Classification label: </strong> ${col3Value}</p>
+
+
+
+
+
+                    function showPopup(element) {
+        const popupData = JSON.parse(element.getAttribute('data-popup-info'));
+        const col1 = this.dataset.highlightCol1;
+        const col3 = this.dataset.highlightCol3;
+        const col5 = this.dataset.highlightCol5;
+        const popup = document.getElementById('infoPopup');
+        const popupContent = document.getElementById('popupData');
+        
+        // Generate list-style report HTML
+        let html = '';
+        
+        html += `
+            <h3> Information </h3>
+                <ul> 
+                    <li> Cited DOI: {{doi}}</li>
+                    <li> Retraction Status: {{col1}}</li>
+                    <li> Retraction Reasons: {{col3}}</li>
+                    <li> Citation Context: {{col2}}</li>
+                    <li> Retraction similarity: {{doi}}</li>
+                </ul>`;
+
+
+
+
+
+
+
+
+                                            <td class="{% if cell is not none and cell|length > 10 %}text-cell{% endif %} 
+                                    {% if loop.first %}first-column clickable{% endif %}" 
+                                data-popup-info="{{ row|tojson|forceescape }}"
+                                data-highlight-col1="{{ row['Citing DOI'] }}" 
+                                data-highlight-col3="{{ row['Citation_context'] }}"  
+                                data-highlight-col5="{{ row['Reason'] }}"  
+                            </td></td>

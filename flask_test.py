@@ -94,15 +94,6 @@ def update_histogram(selected_column):
     )
     return fig
 
-def get_db():
-    """Ensure database exists and get connection"""
-    if not os.path.exists(db_path):
-        raise FileNotFoundError(f"Database file not found.")
-    
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
-
 @server.route('/', methods=['GET', 'POST'])
 def index():
     return render_template("index.html")
@@ -130,13 +121,126 @@ def upload_file():
 def citations():
     doi = request.form.get('doi')
     pmid = request.form.get('pmid')
-    if (pmid) and (doi):
+    """if (pmid) and (doi):
         pmcids = convert([pmid])
         print(pmcids)
         count , path = fetch_pubmed_articles(pmcids)
         print(f'{count} xml files were downloaded from PMC')
         pmc_citations_df = process_files(path)
-    elif doi:
+        #Citing papers
+    el"""
+    if doi:
+        if pmid:
+            download_pmc_xml(pmid)
+            file = 'citing_'+pmid#+ids['PMID'][0]
+            print(file)
+            pmids = extract_pmids(file)
+            print(pmids)        
+            pmcids = convert(pmids)
+            print(pmcids)
+            count_citing , path = fetch_pubmed_articles(pmcids)
+            print(f'{count_citing} xml files were downloaded from PMC')
+            citing_df = process_files(path)
+            print(citing_df)
+            #shutil.rmtree(path)
+            final = citing_df[(citing_df['DOI'] == doi)]#|(pmc_citations_df['Cited title'].apply(lambda x: match_min_phrase(x, title) if pd.notna(x) else False))]
+            final =  final[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","DOI", "Cited title"]]
+            finalc = final #classif(final)
+            print(finalc)  
+        ids = doi_to_pmcid([doi])
+        print(ids)
+        pmcid = ids[ids.PMCID != 'Not Found']
+        if not pmcid.empty:
+            p = pmcid.PMCID#.head(5)
+            count_cited , path = fetch_pubmed_articles(p)
+            print(f'{count_cited} xml files were downloaded from PMC')
+            print(path)
+            pmc_citations_df = process_files(path)
+            print(pmc_citations_df)
+            #shutil.rmtree(path)
+
+        else:
+            crawlForPaper(doi)
+            #xml = path+'/doi.xml'
+            pmc_citations_df = extract_elsevier_citations('doi.xml')
+
+
+
+
+    #result_cited =  result_cited[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","predicted_label","DOI", "Cited title"]]
+
+    pmc_citations = pmc_citations_df#classif(pmc_citations_df)
+    if 'finalc' not in locals():
+        finalc = pd.DataFrame()
+
+    if 'pmc_citations' not in locals():
+        pmc_citations = pd.DataFrame()
+
+    # final_df = dois_cited_eval(doi_list, "try_pipeline")# pd.read_csv("../../Citing/abstracts_like_vickers.tsv", sep = '\t', dtype = str) #
+    #print(final_df)
+
+    result_citing = classif(finalc)
+    result_citing =  result_citing[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","predicted_label","DOI", "Cited title"]]
+
+    result_cited = classif(pmc_citations)
+    result_cited = result_cited[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","predicted_label","DOI", "Cited title"]]
+
+    print(len(pmc_citations),len(final))
+
+    return render_template(
+        "cc.html", 
+        results=result_cited.values.tolist(), 
+        resu=result_citing.values.tolist(), 
+        doi=doi,
+        cited=len(pmc_citations),
+        citing=len(finalc),
+        column_names=result_cited.columns.tolist(),
+        citing_count= len(finalc['Citing DOI'].unique()),
+        cited_count= len(pmc_citations['DOI'].unique()),
+        resu_column_names=result_citing.columns.tolist(),
+    )
+
+@server.route('/retraction', methods=['POST'])
+def retraction():
+    doi = request.form.get('doi')
+    pmid = request.form.get('pmid')
+    merged_citing = pd.DataFrame()
+    merged_df = pd.DataFrame()
+    pmc_citations_df = pd.DataFrame()
+    
+    if doi:
+        print(doi)
+                # Check retraction status
+        retraction_df = pd.read_csv('retraction_watch.csv', dtype=str)
+        retracted = doi in retraction_df['OriginalPaperDOI'].values
+        reason = retraction_df.loc[retraction_df['OriginalPaperDOI'] == doi, 'Reason'].values[0] if retracted else ""
+        reason_list = [item.strip() for item in reason.replace('+', '').split(';') if item.strip()]
+
+        oa = check_open_access(doi)
+
+        # get citing papers if the doi is retracted
+        
+            
+        if pmid:
+            download_pmc_xml(pmid)
+            file = 'citing_'+pmid#+ids['PMID'][0]
+            print(file)
+            pmids = extract_pmids(file)
+            #print(pmids)        
+            pmcids = convert(pmids)
+            #print(pmcids)
+            count_citing , path = fetch_pubmed_articles(pmcids)
+            print(f'{count_citing} xml files were downloaded from PMC')
+            citing_df = process_files(path)
+            #print(citing_df.columns.tolist())
+            if retracted:
+                merged_citing = citing_df.merge(retraction_df[['OriginalPaperDOI','Reason','RetractionDate']], left_on="Citing DOI", right_on='OriginalPaperDOI', how='inner').drop(columns=['OriginalPaperDOI'])   
+                merged_citing = merged_citing if not merged_citing.empty else pd.DataFrame()
+                
+                #print(merged_citing)
+
+        print('merged_citing,   ',merged_citing)
+
         ids = doi_to_pmcid([doi])
         print(ids)
         pmcid = ids[ids.PMCID != 'Not Found']
@@ -144,151 +248,42 @@ def citations():
             p = pmcid.PMCID#.head(5)
             count , path = fetch_pubmed_articles(p)
             print(f'{count} xml files were downloaded from PMC')
+            #print(path)
             pmc_citations_df = process_files(path)
-            print(pmc_citations_df)
+            #print(pmc_citations_df)
             shutil.rmtree(path)
+
+        if retracted:
+            merged_df = pmc_citations_df.merge(retraction_df[['OriginalPaperDOI','Reason','RetractionDate']], left_on='DOI', right_on='OriginalPaperDOI', how='inner').drop(columns=['OriginalPaperDOI'])
         else:
-            crawlForPaper(doi)
-            #xml = path+'/doi.xml'
-            pmc_citations_df = extract_elsevier_citations('doi.xml')
-    return render_template(
-        "results.html",
-        filename=doi,
-        result_df=pmc_citations_df, 
-        column_names=pmc_citations_df.columns.values,
-        row_data=list(pmc_citations_df.values.tolist()),
-        zip=zip
-    )
-    return redirect('/')
-
-
-@server.route('/citing', methods=['POST'])
-def citing():
-    doi = request.form.get('doi')
-    pmid = request.form.get('pmid')
-    title = request.form.get('title')
-    if doi:
-        #ids = doi_to_pmcid([doi])
-        #print(ids)
-        download_pmc_xml(pmid)
-        file = 'citing_'+pmid#+ids['PMID'][0]
-        print(file)
-        pmids = extract_pmids(file)
-        print(pmids)        
-        pmcids = convert(pmids)
-        print(pmcids)
-        count = fetch_pubmed_articles(pmcids)
-        print(f'{count} xml files were downloaded from PMC')
-        pmc_citations_df = process_files(path)
-        print(pmc_citations_df)
-        shutil.rmtree(path)
-        final = pmc_citations_df[(pmc_citations_df['DOI'] == doi)]#|(pmc_citations_df['Cited title'].apply(lambda x: match_min_phrase(x, title) if pd.notna(x) else False))]
-        final =  final[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","DOI", "Cited title"]]
-        print(final)
-        return render_template(
-            "results_citing.html",
-            doi=doi,
-            result_df=final, 
-            column_names=final.columns.values,
-            row_data=list(final.values.tolist()),
-            zip=zip
-        )
-    return redirect('/')
-
-
-@server.route('/process_doi', methods=['POST'])
-def process_doi():
-    doi = request.form.get('doi')
-    if doi:
-        pmc_data = fetch_ids_batch(doi)
-        formatted_data = []
-        for item in pmc_data:
-            formatted_data.append({
-                'DOI': item[0],
-                'PMID': item[1],
-                'PMCID': item[2]
-            })
+            merged_df = merged_df if not merged_df.empty else pd.DataFrame()
+        print(merged_df)
         
-        return render_template('doi.html', 
-                            pmc_data=formatted_data,
-                            show_pmc_table=bool(pmc_data))
-    return redirect('/')
+        if merged_df.empty:
+            data = []
+            columns = []
+        else:
+            data = merged_df.values.tolist()
+            columns = merged_df.columns.tolist()
+        print(merged_citing)    
+        return render_template(
+            "db.html",
+            resu=data,  
+            doi=doi,
+            resu_column_names= columns,
+            retracted=retracted,
+            reasons=reason_list,
+            merged_citing=merged_citing.values.tolist(),
+            merged_citing_cols=merged_citing.columns.tolist(),
+            citing_count= len(merged_citing['DOI'].unique()) if not merged_citing.empty else '0',
+            cited_count= len(merged_df['DOI'].unique()) if not merged_df.empty else '0' ,
+            citing=len(merged_citing),
+            cited=len(data),
+            oa=oa
+        )
 
-@server.route('/database', methods=['POST'])
-def database():
-    results = None
-    resu = None
-    conn = get_db()
-    doi = request.form.get('doi', '').strip()
-    
-    if not doi:
-        flash('Please enter a DOI', 'error')
-    else:
-        try:
-                # Check retraction status
-            retraction_df = pd.read_csv('retraction_watch.csv', dtype=str)
-            retracted = doi in retraction_df['OriginalPaperDOI'].values
-            reason = retraction_df.loc[retraction_df['OriginalPaperDOI'] == doi, 'Reason'].values[0] if retracted else ""
-            reason_list = [item.strip() for item in reason.replace('+', '').split(';') if item.strip()]
-            
-            # Check Open access status
-            oa = check_open_access(doi)
-            print(f"OA data: {oa}")
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT name FROM sqlite_master 
-                WHERE type='table' 
-                AND name IN ('retraction')
-            """)
-            existing_tables = [row['name'] for row in cursor.fetchall()]
-            
-            if len(existing_tables) <= 0:
-                flash(f"Missing tables. Found: {existing_tables}", 'error')
-            else:
-                cursor.execute("""
-                    SELECT CitingDOI, CitationID, CCparagraph, Citation_context, Reason, RetractionDate,DOI, Citedtitle FROM retraction WHERE retraction.DOI = ?""", (doi,))
-                results = cursor.fetchall()
-                results_columns = [desc[0] for desc in cursor.description]
-                print(results_columns)
-                
-                cursor.execute("""
-                    SELECT * FROM retraction
-                    WHERE retraction.CitingDOI = ?
-                """, (doi,))
-                resu = cursor.fetchall()
-                #print(resu)
-                resu_columns = [desc[0] for desc in cursor.description]
-            
-                if not results and not resu:
-                    flash(f"No results found for DOI or CitingID: {doi}", 'info')
 
-                results = [list(row) for row in results] if results else []
-                resu = [list(row) for row in resu] if resu else []
-                t = pd.DataFrame(results,columns= (results_columns))
-                print(results)
-                #r = classif(t)
-                #print(r)
-                #r.values.tolist()
-                return render_template(
-                    "db.html", 
-                    results=results, 
-                    resu=resu, 
-                    doi=doi,
-                    column_names=results_columns,
-                    resu_column_names=resu_columns,
-                    retracted=retracted,
-                    reasons=reason_list,
-                    oa=oa)
-                            
-        except sqlite3.Error as e:
-            flash(f"Database error: {str(e)}", 'error')
-        except Exception as e:
-            flash(f"Error: {str(e)}", 'error')
-        finally:
-            conn.close()
-
-    #return redirect('/')
 
     
 if __name__ == '__main__': 
-    app.run( threaded=True) #host='0.0.0.0', port=5000,
+    app.run( debug=True,host='0.0.0.0', port=5000,) 
