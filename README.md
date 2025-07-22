@@ -2,8 +2,6 @@
 
 This repository containes scripts for **citation context extraction**, with support for complex and stacked citation handling in pmc xml files.
 
-## What it can do
-
 -  **Extract citation contexts** from PMC XML files.
 -  **Handle stacked citations** such as `[1–4]`, `[3, 5–7]`, or mixed `<xref>` tag structures.
 -  **Convert identifiers** between DOI, PMID, and PMCID.
@@ -15,50 +13,24 @@ This repository containes scripts for **citation context extraction**, with supp
 - **Extract citation contexts** from citing articles referencing a specific paper (via DOI, PMID, or PMCID).
 - **Retrieve citation context metadata**, including section titles and IMRAD structure (Introduction, Methods, Results, Discussion).
 
-## Example Citation context extraction: <strong style="color:green;">Citing_DOIS.ipynb</strong>
 
-1. **Input**: PMC XML full-text article or batch of XML files.
-2. **Process**: 
-   - Identify inline citations via `<xref>` tags.
-   - Expand stacked citations automatically.
-   - Extract surrounding sentence, paragraph, and section context.
-3. **Output**: Structured data frame with citation metadata.
+## Get results table with ["DOI", "Cited title", "Citation ID", "CC paragraph", "Citation_context", "Citing DOI", "PMCID"]:
 
-## Retracted papers: <strong style="color:green;">RR.ipynb</strong>
--  **Check for retracted DOIs** in retraction_watch.csv.
--  **Extract retraction reasons** for each DOI 
--  **Check if retraction_watch.csv was updated** on the git or not before using it  <strong style="color:green;">Makefile</strong>
+  Use Stacked_citations/Stacked_citations_simple_sent.py
 
-# PMC citations 
+### Exapmle usage command line:
 
-## PMC_scripts.py with command line arguments:
-- This script converts DOIs into PMCIDs/PMIDs, checks if a given DOI is in PMC and downloads the xml files corresponding to the given DOIs. 
-1. **Convert DOIs** (from a csv file or from a list given in the arguments) outputs it into a tsv file : 
-- **Example usage:**
-- python3 PMC_scripts.py -f path_to/csv_file_containing DOIs
-- python3 PMC_scripts.py -c doi1 doi2 ... -t for the tsv output file name (default = dois_to_pmcids.tsv)
+python3 Stacked_citations_simple_sent.py -x path_to_pmc_xml_file.xml  *for one file*
+python3 Stacked_citations_simple_sent.py -f path_to_pmc_xml_directory *for folder*
 
-2. **Download the xml files corresponding to DOIs that have a PMCID** 
-- **Example usage:**
-- python3 PMC_scripts.py -f path_to/doi_file -d y (default value is n) -o xml dowload folder name (default = pmc_xml)
 
-3. **Check if DOI is in PMC:**
-- **Example usage:**
-- python3 PMC_scripts.py -f path_to/doi_file -m y
+## Web_page folder:
+  * Source code for the Flask Web_app.
+  * For now it only works with one DOI input at a time (to be updated ofc).
+  * For a smooth, run the libraries in **requirements.txt** file need to be installed.
+  * The files in link need to be downloaded and put in the directory Web_page for the retraction and classification functions.
+
+### Usage:
+    python3 flask_test.py 
+    The app should be running on http://0.0.0.0:5000/
     
-##  PMC citations and abstract extraction cc_abstract_args.py: 
-- This script extracts all the citations inside an xml file, their DOI, and the cc (the whole paragraph). Then extracts the corresponding abstract from PMC -> CrossRef -> Elsevier. There is an optimized citation context option for a (slightly) more accurate CC (working on this with dynamic CC).
-
-1. **Input:** xml file or folder containing multiple xml files:
-- **Example usage:**
-- python3 cc_abstract_args.py -x path_to/xml_file 
-- python3 cc_abstract_args.py -f path_to/xml_folder  
-
-2. **Get optimized cc (with cos similarity):** Withou this option the cc returned is basic (the paragraph containing the citation).
-- **Example usage:**
-- python3 cc_abstract_args.py -xml path_to/file_name -c cos
-
-3. **API Key:**
-- Add NCBI and Elsevier key for fatser requests (and an e-mail adress for elsevier):
-- **Example usage:**
-- python3 cc_abstract_args.py -x path_to/xml_file -p pmc_key -e elsevier_key -m e-mail_@
