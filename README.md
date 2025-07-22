@@ -20,8 +20,8 @@ This repository containes scripts for **citation context extraction**, with supp
 
 ### Exapmle usage command line:
 
-python3 Stacked_citations_simple_sent.py -x path_to_pmc_xml_file.xml  *for one file*
-python3 Stacked_citations_simple_sent.py -f path_to_pmc_xml_directory *for folder*
+- python3 Stacked_citations_simple_sent.py -x path_to_pmc_xml_file.xml      **for one file**
+- python3 Stacked_citations_simple_sent.py -f path_to_pmc_xml_directory     **for folder**
 
 
 ## Web_page folder:
