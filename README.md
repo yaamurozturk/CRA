@@ -24,11 +24,11 @@ This repository containes scripts for **citation context extraction**, with supp
 - python3 Stacked_citations_simple_sent.py -f path_to_pmc_xml_directory     **for folder**
 
 
-## Web_page folder:
-  * Source code for the Flask Web_app.
+## Flask_app folder:
+  * Source code for the Flask APP.
   * For now it only works with one DOI input at a time (to be updated ofc).
   * For a smooth, run the libraries in **requirements.txt** file need to be installed.
-  * The files in link need to be downloaded and put in the directory Web_page for the retraction and classification functions.
+  *Retraction_watch.csv file should be downloaded in the Flask_app directory 
 
 ### Usage:
     python3 flask_test.py 
