@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload Data</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Times New Roman, sans-serif;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        .card {
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+    .carousel-item {
+        transition: transform 0.6s ease-in-out;
+    }
+    .card {
+        border: none;
+        border-radius: 0.5rem;
+    }
+    .form-control:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    h1 {
+      position: relative;
+      padding: 0;
+      margin: 0;
+      font-family: "Raleway", sans-serif;
+      font-weight: 300;
+      font-size: 40px;
+      color: #080808;
+      -webkit-transition: all 0.4s ease 0s;
+      -o-transition: all 0.4s ease 0s;
+      transition: all 0.4s ease 0s;
+    }
+
+    h1 span {
+      display: block;
+      font-size: 0.5em;
+      line-height: 1.3;
+    }
+    h1 em {
+      font-style: normal;
+      font-weight: 600;
+    }
+
+    </style>
+</head>
+<body class="p-4">
+
+<center>
+<div class="container">
+    <div>
+      <i><strong><font size="7" face="times new roman" >Citation Contexts Extraction from Open Access PMC Articles </font></strong></i>
+      <br><br>
+    </div>
+
+    <!-- Forms Section -->
+
+    <div class="row">
+    <!-- Cited Citation Contexts Extraction -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body d-flex flex-column">
+                <h4 class="mb-3 text-success"><strong>Citation Contexts Extraction and Classification</strong></h4>
+                <form id="citedForm" action="/citations" method="POST" class="d-flex flex-column h-100">
+                <label for="file" class="form-label">Retrieve all Citation Contexts citing and cited by the submitted DOI </label>
+                             <div class="d-flex gap-2">
+                                <input class="form-control w-25" type="text" name="pmid" id="pmid" placeholder="PMID">  <!-- required> !-->
+                                <input class="form-control flex-grow-1" type="text" name="doi" id="doi" placeholder="10.xxxx/xxxx" required>
+                            </div>
+                    <div class="mt-auto">
+                        <button type="submit" class="btn btn-success w-100">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+      <!-- XML Upload Form -->
+  <!--    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body d-flex flex-column">
+                <h4 class="mb-3 text-primary"><strong>Citation Contexts in XML</strong></h4>
+                <form action="/upload" method="POST" enctype="multipart/form-data" class="d-flex flex-column h-100">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Extract All Citation Contexts from the given PMC XML file</label>
+                        <input class="form-control" type="file" name="file" id="file" accept=".xml" required>
+                    </div>
+                    <div class="mt-auto">
+                        <button type="submit" class="btn btn-primary w-100">Upload</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>-->
+
+        <!-- DOI Form -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h4 class="mb-3 text-danger"><strong>Citation to Retracted papers in PMC</strong></h4>
+                    <form id="doiForm" action="/retraction" method="POST">
+                        <div class="mb-3">
+                            <label for="doi" class="form-label">Check if input DOI is a retracted paper, retreive the Citation Contexts from papers in PMC citing it.</label>
+                                <div class="d-flex gap-2">
+                                <input class="form-control w-25" type="text" name="pmid" id="pmid" placeholder="PMID">  <!-- required> !-->
+                                <input class="form-control flex-grow-1" type="text" name="doi" id="doi" placeholder="10.xxxx/xxxx" required>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2 d-md-flex">
+                            <button type="submit" class="btn btn-danger flex-grow-1">Submit</button>
+
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</center>
+ <!--           <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h4 class="mb-3 text-warning"><strong>Citing Citation Contexts Extraction </strong></h4>
+                    <form id="doiForm" action="/citing" method="POST">
+                        <div class="mb-3">
+                             <label for="doi" class="form-label">Retrive all Citation Contexts from the PMC open access papers citing the submitted DOI </label>
+                            <div class="d-flex gap-2">
+                            <input class="form-control w-25" type="text" name="pmid" id="pmid" placeholder="PMID" required>
+                            <input class="form-control flex-grow-1" type="text" name="doi" id="doi" placeholder="10.xxxx/xxxx">
+                            </div>
+                               
+                        </div>
+                        <div class="d-grid gap-2 d-md-flex">
+                            <button type="submit" class="btn btn-warning flex-grow-1">Submit</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+     </div>   --> 
+
+
+ 
+
+
+    
+
+
+ <font size="6" face="times new roman" color="#dc3545"><strong>Retraction Watch Analytics</strong></font>
+    <iframe src="/dashboard/" style="width: 100%; height: 900px; border: none;"></iframe>
+<script>
+
+function submitToRetract() {
+    const doi = document.getElementById('doi').value;
+    if (doi) {
+        // Create a temporary form
+        const form = document.createElement('form');
+        form.action = '/retract';
+        form.method = 'POST';
+        
+        // Add DOI input
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'doi';
+        input.value = doi;
+        form.appendChild(input);
+        
+        // Submit the form
+        document.body.appendChild(form);
+        form.submit();
+    } else {
+        alert('Please enter a DOI first');
+    }
+}
+
+</script>
+
+    </div>
+
+    </div>
+</center>
+
+</body>
+</html>
+
