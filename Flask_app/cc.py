@@ -163,14 +163,13 @@ def expand_citation_range(start_id, end_id, ref_list):
 def seen_sent(seen, sentences, citation_text, rid, data, ref_dict, ref_id, full_text, citing_doi, pmcid='Not Found',ppd='Not Found', nesrest_level_title ='Not Found',  top_level_title='Not Found'): 
     if not ppd:
         ppd = 'Not found'
-    matching_sentences = [full_text]
+    matching_sentences = [full_text[0:500]]
     for i,s in enumerate(sentences):
         if (citation_text and citation_text in s) or rid in s:
             sent = ' '.join(sentences[max(i-1,0): min(len(sentences),i +2)])
             #sent = re.sub(r'[^a-zA-Z0-9., %]', '', sent, flags=re.ASCII)
-            matching_sentences = [sent]
-            
-       
+            matching_sentences = [sent]   
+
     
     for sentence in matching_sentences:
         if (rid, sentence) in seen:
