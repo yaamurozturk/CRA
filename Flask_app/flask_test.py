@@ -23,7 +23,7 @@ server.secret_key = 'dev-secret-key-123'
 BASE_DIR = "../" #os.path.dirname(os.path.abspath(__file__)) # current directory
 db_path = os.path.join(BASE_DIR, "database")
 
-df = pd.read_csv('../Retraction/retraction_watch.csv', dtype=str)
+df = pd.read_csv('retraction_watch.csv', dtype=str)
 df['RetractionDate'] = pd.to_datetime(df['RetractionDate'], format='%m/%d/%Y %H:%M', errors='coerce')
 df['Year'] = df['RetractionDate'].dt.year
 df = df.dropna(subset=['Year'])
