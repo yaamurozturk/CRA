@@ -26,7 +26,7 @@ def classif(df):
     print(df)
     print(f"Saved  cleaned examples to {output_jsonl}")
 
-    df = df.head(10)
+    #df = df.head(10)
     df = df.dropna(subset=[citation_column])
     df = df[df[citation_column].str.strip() != ""]
 
@@ -39,18 +39,20 @@ def classif(df):
 
     # === RUN PREDICTIONS AND TOKENIZATION ===
     texts = df[citation_column].tolist()
-    predictions = classifier(texts, batch_size=8)
+    predictions = classifier(texts, batch_size=8, truncation=True, max_length=512)
+    #predictions = classifier(texts, batch_size=8, truncation=True)
 
     # === ADD RESULTS TO DATAFRAME ===
     df["predicted_label"] = [pred["label"] for pred in predictions]
-    df["confidence"] = [pred["score"] for pred in predictions]
-    df["tokens"] = [tokenizer.tokenize(text) for text in texts]
+    #df["confidence"] = [pred["score"] for pred in predictions]
+    #df["tokens"] = [tokenizer.tokenize(text) for text in texts]
 
     # === SAVE TO CSV ===
     df.to_csv(output_csv, index=False)
     print(f"Saved predictions and tokenized sentences to {output_csv}")
     #print(df)
     df_expanded = df.assign(predicted_label=df["predicted_label"].str.split(";")).explode("predicted_label")
+    print(df)
     """df = pd.read_csv("with_predictions.csv")
     df["predicted_label"] = df["predicted_label"].astype(str)
     label_totals = df_expanded["predicted_label"].value_counts(); label_totals"""
