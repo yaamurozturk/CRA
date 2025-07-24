@@ -23,7 +23,7 @@ server.secret_key = 'dev-secret-key-123'
 BASE_DIR = "../" #os.path.dirname(os.path.abspath(__file__)) # current directory
 db_path = os.path.join(BASE_DIR, "database")
 
-df = pd.read_csv('retraction_watch.csv', dtype=str)
+df = pd.read_csv('../Retraction/retraction_watch.csv', dtype=str)
 df['RetractionDate'] = pd.to_datetime(df['RetractionDate'], format='%m/%d/%Y %H:%M', errors='coerce')
 df['Year'] = df['RetractionDate'].dt.year
 df = df.dropna(subset=['Year'])
@@ -43,7 +43,7 @@ app.layout = html.Div([
 
 @app.callback(
     Output('histogram', 'figure'),
-    Input('column-selector', 'value')
+    Input('column-selector', 'value') 
 )
 def update_histogram(selected_column):
     if df[selected_column].dtype == 'object' or df[selected_column].nunique() < 20:
@@ -121,6 +121,9 @@ def upload_file():
 def citations():
     doi = request.form.get('doi')
     pmid = request.form.get('pmid')
+    finalc = pd.DataFrame()
+    pmc_citations = pd.DataFrame()
+
     """if (pmid) and (doi):
         pmcids = convert([pmid])
         print(pmcids)
@@ -164,28 +167,34 @@ def citations():
             #xml = path+'/doi.xml'
             pmc_citations_df = extract_elsevier_citations('doi.xml')
 
-
-
-
     #result_cited =  result_cited[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","predicted_label","DOI", "Cited title"]]
 
-    pmc_citations = pmc_citations_df#classif(pmc_citations_df)
-    if 'finalc' not in locals():
-        finalc = pd.DataFrame()
+    #classif(pmc_citations_df)
+    if not final.empty:
+        finalc = final
+        result_citing = classif(finalc)
+    else:
+        result_citing = pd.DataFrame()
 
-    if 'pmc_citations' not in locals():
-        pmc_citations = pd.DataFrame()
+    if not pmc_citations_df.empty:
+        pmc_citations = pmc_citations_df
+        result_cited = classif(pmc_citations)
+    else:
+        result_cited = pd.DataFrame()
+        
 
     # final_df = dois_cited_eval(doi_list, "try_pipeline")# pd.read_csv("../../Citing/abstracts_like_vickers.tsv", sep = '\t', dtype = str) #
-    #print(final_df)
+    
 
-    result_citing = classif(finalc)
-    result_citing =  result_citing[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","predicted_label","DOI", "Cited title"]]
+    
+    #print(result_citing.columns)
+    print(pmc_citations)
+    #result_citing =  result_citing[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","predicted_label","DOI", "Cited title"]]
+    
+    print(result_citing.columns)
+    #result_cited = result_cited[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","predicted_label","DOI", "Cited title"]]
 
-    result_cited = classif(pmc_citations)
-    result_cited = result_cited[["Citing DOI",  "Citation ID", "CC paragraph", "Citation_context","Section", "IMRAD", "Publication Date","predicted_label","DOI", "Cited title"]]
-
-    print(len(pmc_citations),len(final))
+    print(len(result_cited),len(result_citing))
 
     return render_template(
         "cc.html", 
@@ -195,8 +204,8 @@ def citations():
         cited=len(pmc_citations),
         citing=len(finalc),
         column_names=result_cited.columns.tolist(),
-        citing_count= len(finalc['Citing DOI'].unique()),
-        cited_count= len(pmc_citations['DOI'].unique()),
+        citing_count = len(finalc['Citing DOI'].dropna().unique()) if 'Citing DOI' in finalc.columns and not finalc['Citing DOI'].dropna().empty else 0,
+        cited_count = len(pmc_citations['DOI'].dropna().unique()) if 'DOI' in pmc_citations.columns and not pmc_citations['DOI'].dropna().empty else 0,
         resu_column_names=result_citing.columns.tolist(),
     )
 
