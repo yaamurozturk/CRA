@@ -1,3 +1,7 @@
+# Ongoing work: Citations to retracted publications data extractor and analyzer tool to help in post publication peer review. 
+
+Contributors: Tiziri Terkmani, Yagmur Ozturk, Qinyue Liu 
+
 # Citation Context Extraction:  
 
 This repository containes scripts for **citation context extraction**, with support for complex and stacked citation handling in pmc xml files.
