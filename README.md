@@ -2,6 +2,8 @@
 
 Contributors: Tiziri Terkmani, Yagmur Ozturk, Qinyue Liu 
 
+# Static website link: TBA, undergoing server updates
+
 # Citation Context Extraction:  
 
 This repository containes scripts for **citation context extraction**, with support for complex and stacked citation handling in pmc xml files.
