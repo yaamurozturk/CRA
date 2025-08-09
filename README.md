@@ -1,4 +1,4 @@
-# Ongoing work: Citations to retracted articles (CRA) data extractor and analyzer tool to help in post publication peer review. 
+# Ongoing work: Citations to retracted articles (CRA) Analysis Tool for Post Publication Peer Review
 
 Contributors: Yagmur Ozturk, Tiziri Terkmani, Qinyue Liu 
 
