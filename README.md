@@ -34,7 +34,7 @@ This repository containes scripts for **citation context extraction**, with supp
 
 ## Flask_app folder:
   * Source code for the Flask APP.
-  * For now it only works with one DOI input at a time (to be updated ofc).
+  * For now it only works with one DOI input at a time.
   * For a smooth, run the libraries in **requirements.txt** file need to be installed using **pip install -r requirements.txt**.
   * **Retraction_watch.csv file should be _downloaded_ and put inside the Flask_app directory**: Dowload link: https://gitlab.com/crossref/retraction-watch-data
 
