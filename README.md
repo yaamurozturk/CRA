@@ -3,6 +3,8 @@
 Contributors: Tiziri Terkmani, Yagmur Ozturk, Qinyue Liu 
 
 # Static website link: TBA, undergoing server updates
+<img width="1510" height="770" alt="resim" src="https://github.com/user-attachments/assets/e00c6cb4-7cfa-48b1-ab9f-5d74d4129926" />
+
 
 # Citation Context Extraction:  
 
