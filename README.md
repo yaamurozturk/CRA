@@ -52,3 +52,8 @@ This repository containes scripts for **citation context extraction**, with supp
 - COSIG's guide on citations to retracted publications and how to do PPPR on them: https://osf.io/9q3as
 - PMC OA: https://pmc.ncbi.nlm.nih.gov/tools/openftlist/
 - *We obtain Retraction Reasons and other retraction metadata obtained from the Retraction Watch Database. Thank you Retraction Watch! https://retractiondatabase.org/RetractionSearch.aspx?
+
+## Acknowledgments 
+We acknowledge the NanoBubbles project that has received Synergy grant funding from the European Research Council (ERC), within the European Union’s Horizon 2020 program, grant agreement no. 951393.
+<img width="131" height="132" alt="resim" src="https://github.com/user-attachments/assets/9200c047-183d-457d-a4b8-0260005f6d5b" />
+
