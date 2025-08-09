@@ -2,6 +2,11 @@
 
 Contributors: Tiziri Terkmani, Yagmur Ozturk, Qinyue Liu 
 
+Citations to retracted publications need to be analyzed to ensure the reliability of citing literature since they are unreliable sources. However, identfying these citations and finding in which contexts they are cited is a time consuming task. Here, we offer a pipeline that helps with this task! 
+
+We combine metadata that we find necessary to analyse CRA such as retraction reasons*, retraction & publication date, citation contexts (sentence based and larger windows), highlighting of the retracted reference inside the context (especially useful when there are multiple references). All of this information can be visualized in a table to offer easy access & PPPR after running the pipeline (or using the link above). All you need to provide is the PMID and the DOI of the publication that you're interested in analysing. 
+The pipeline currently only supports the parsing of Pubmed Central Open Access (PMC-OA) articles with full-text XMLs, but we are working (hard) to support other formats!
+
 # Static website link: TBA, undergoing server updates
 <img width="1510" height="770" alt="resim" src="https://github.com/user-attachments/assets/e00c6cb4-7cfa-48b1-ab9f-5d74d4129926" />
 
@@ -41,4 +46,9 @@ This repository containes scripts for **citation context extraction**, with supp
 ### Usage:
     python3 flask_test.py 
     The app should be running on http://0.0.0.0:5000/
-    
+
+## Sources
+- Problematic Paper Screener' Feet of Clay Detector: https://dbrech.irit.fr/pls/apex/f?p=9999:31::::::
+- COSIG's guide on citations to retracted publications and how to do PPPR on them: https://osf.io/9q3as
+- PMC OA: https://pmc.ncbi.nlm.nih.gov/tools/openftlist/
+- *We obtain Retraction Reasons and other retraction metadata obtained from the Retraction Watch Database. Thank you Retraction Watch! https://retractiondatabase.org/RetractionSearch.aspx?
