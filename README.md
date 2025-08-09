@@ -1,4 +1,6 @@
-# Ongoing work: Citations to retracted articles (CRA) Analysis Tool for Post Publication Peer Review
+Citations to retracted articles (CRA) Analysis Tool for Post Publication Peer Review
+
+Disclaimer: This is an ongoing work which will be updated regularly. 
 
 Contributors: Yagmur Ozturk, Tiziri Terkmani, Qinyue Liu , Cyril Labbé
 
@@ -8,7 +10,9 @@ We combine metadata that we find necessary to analyse CRA such as retraction rea
 The pipeline currently only supports the parsing of Pubmed Central Open Access (PMC-OA) articles with full-text XMLs, but we are working (hard) to support other formats!
 
 # Static website link: TBA, undergoing server updates
-<img width="1510" height="770" alt="resim" src="https://github.com/user-attachments/assets/e00c6cb4-7cfa-48b1-ab9f-5d74d4129926" />
+<img width="1671" height="748" alt="resim" src="https://github.com/user-attachments/assets/2588de52-0af6-4eef-a9a4-640e2591aa41" />
+
+
 
 
 # Citation Context Extraction:  
