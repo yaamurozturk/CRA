@@ -58,8 +58,9 @@ This repository containes scripts for **citation context extraction**, with supp
 - *We obtain Retraction Reasons and other retraction metadata obtained from the Retraction Watch Database. Thank you Retraction Watch! https://retractiondatabase.org/RetractionSearch.aspx?
 
 ## Acknowledgments 
-We acknowledge the NanoBubbles project that has received Synergy grant funding from the European Research Council (ERC), within the European Union’s Horizon 2020 program, grant agreement no. 951393.
+We acknowledge the NanoBubbles project that has received Synergy grant funding from the European Research Council (ERC), within the European Union’s Horizon 2020 program, grant agreement no. 951393. 
 
 
 <img width="131" height="132" alt="resim" src="https://github.com/user-attachments/assets/9200c047-183d-457d-a4b8-0260005f6d5b" />
+<img width="265" height="188" alt="resim" src="https://github.com/user-attachments/assets/ee5c8f12-3c5c-4bbe-b957-d454dd304a84" />
 
