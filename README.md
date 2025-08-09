@@ -10,7 +10,7 @@ A previous version of this work was presented in [![DOI](https://zenodo.org/badg
 - Citations to retracted publications need to be analyzed to ensure the reliability of citing literature since they are unreliable sources. However, identfying these citations and finding in which contexts they are cited is a time consuming task. Here, we offer a pipeline that helps with this task! 
 - We combine metadata that we find necessary to analyse CRA such as retraction reasons*, retraction & publication date, citation contexts (sentence based and larger windows), highlighting of the retracted reference inside the context (especially useful when there are multiple references) and section titles (where the citation is situated).
 - We also add citation function classification to the citation contexts to identify "how" a retracted article is cited. The pipeline is going to be updated with more citation analysis based on natural language processing methods.
-- All of this information can be visualized in a table to offer easy access & PPPR after running the pipeline (or using the link above). All you need to provide is the PMID and the DOI of the publication that you're interested in analysing. 
+- All of this information can be visualized in a table to offer easy access & PPPR after running the pipeline (or using the static website link -no coding needed). All you need to provide is the PMID and the DOI of the publication that you're interested in analysing. 
 
 # Limitations
 The pipeline currently only supports the parsing of Pubmed Central Open Access (PMC-OA) articles with full-text XMLs, but we are working (hard) to support other formats!
