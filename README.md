@@ -1,6 +1,6 @@
 # Ongoing work: Citations to retracted articles (CRA) Analysis Tool for Post Publication Peer Review
 
-Contributors: Yagmur Ozturk, Tiziri Terkmani, Qinyue Liu 
+Contributors: Yagmur Ozturk, Tiziri Terkmani, Qinyue Liu , Cyril Labbé
 
 Citations to retracted publications need to be analyzed to ensure the reliability of citing literature since they are unreliable sources. However, identfying these citations and finding in which contexts they are cited is a time consuming task. Here, we offer a pipeline that helps with this task! 
 
@@ -55,5 +55,7 @@ This repository containes scripts for **citation context extraction**, with supp
 
 ## Acknowledgments 
 We acknowledge the NanoBubbles project that has received Synergy grant funding from the European Research Council (ERC), within the European Union’s Horizon 2020 program, grant agreement no. 951393.
+
+
 <img width="131" height="132" alt="resim" src="https://github.com/user-attachments/assets/9200c047-183d-457d-a4b8-0260005f6d5b" />
 
