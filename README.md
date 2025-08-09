@@ -1,11 +1,12 @@
 # Citations to retracted articles (CRA) Analysis Tool for Post Publication Peer Review
+## Contributors: Yagmur Ozturk, Tiziri Terkmani, Qinyue Liu , Cyril Labbé
 
 Disclaimer: This is an ongoing work which will be updated regularly, thanks for your patience! 
 
 A previous version of this work was presented in [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14142701.svg)](https://doi.org/10.5281/zenodo.14142701) and the current version will be presented in the 10th Peer Review Congress https://peerreviewcongress.org/peer-review-congress-2025-program/#posters. 
 
-## Contributors: Yagmur Ozturk, Tiziri Terkmani, Qinyue Liu , Cyril Labbé
 
+## About this work 
 Citations to retracted publications need to be analyzed to ensure the reliability of citing literature since they are unreliable sources. However, identfying these citations and finding in which contexts they are cited is a time consuming task. Here, we offer a pipeline that helps with this task! 
 
 We combine metadata that we find necessary to analyse CRA such as retraction reasons*, retraction & publication date, citation contexts (sentence based and larger windows), highlighting of the retracted reference inside the context (especially useful when there are multiple references) and section titles (where the citation is situated). 
