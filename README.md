@@ -1,8 +1,8 @@
-## Citations to retracted articles (CRA) Analysis Tool for Post Publication Peer Review
+# Citations to retracted articles (CRA) Analysis Tool for Post Publication Peer Review
 
-Disclaimer: This is an ongoing work which will be updated regularly. 
+Disclaimer: This is an ongoing work which will be updated regularly, thanks for your patience! 
 
-Contributors: Yagmur Ozturk, Tiziri Terkmani, Qinyue Liu , Cyril Labbé
+## Contributors: Yagmur Ozturk, Tiziri Terkmani, Qinyue Liu , Cyril Labbé
 
 Citations to retracted publications need to be analyzed to ensure the reliability of citing literature since they are unreliable sources. However, identfying these citations and finding in which contexts they are cited is a time consuming task. Here, we offer a pipeline that helps with this task! 
 
